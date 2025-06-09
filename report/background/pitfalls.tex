@@ -1,0 +1,61 @@
+\section{Pitfalls}
+\label{sec:pitfalls}
+
+\subsection{Left Recursion}
+\label{ssec:lrec}
+
+One of the motivating anti-patterns is the difficulty of handling left-recursion \cite{willis21}.
+Recall the basic expression grammar \texttt{expr}, first mentioned in \autoref{chap:intro}.
+\begin{lstlisting}
+    expr ::= expr '+' nat | nat
+\end{lstlisting}
+Using the combinators that have been introduced above, this can be written as the following (actually performing the calculations):
+
+\begin{capminted}
+    \begin{minted}{teaspoon_lex.py:TeaspoonLexer -x}
+        lazy expr = expr <**> ((x => y => x + y) <$ chr('+')) <*> nat <|> nat;
+    \end{minted}
+    \vspace{-0.5\baselineskip}
+    \caption{Running example of simple addition parser}
+    \label{lst:running_example}
+\end{capminted}
+
+Now consider the execution of this parser: when the parser attempts to parse an \texttt{expr}, the first thing it will do is attempt the first `choice'.
+In this choice, it will then attempt to parse the first parser of that sequence - this is the left-most parser, and it is \texttt{expr}.
+Naturally, it will then attempt to parse another \texttt{expr}; however, at this point no input has been consumed, and the input state remains unchanged - the parser is back where it started; it has looped and made no progress.
+
+The example above shows direct left-recursion, where the production is the left-most lexeme in its own rule.
+In general, left-recursion can be classified into one of three categories; \textbf{direct}, \textbf{indirect}, and \textbf{hidden} \cite{diflrecs}.
+A simple example of an indirect left-recursion would exist in the following grammar, where $A$ is not directly in the right-hand side of the rule for $A$, but exists a level down, in the rule for $B$.
+Note that $A$ and $B$ are non-terminals and $\alpha$ and $\beta$ are terminals.
+\begin{align*}
+    A & \rightarrow B \alpha\ |\ \cdots \\
+    B & \rightarrow A \beta\ |\ \cdots
+\end{align*}
+Finally, hidden left-recursion occurs when the first non-empty lexeme is itself.
+For example, this can be seen in the production $A \rightarrow \epsilon A$, where $\epsilon$ is empty.
+The example given for hidden left-recursion is very simple, however it can also be indirect; for example $A \rightarrow BA$, and $B \rightarrow^* \epsilon$ (where $\rightarrow^*$ means $B$ eventually reduces to $\epsilon$) is also left-recursive.
+Note that even $\text{LR}(k)$ parsers are unable to handle hidden left-recursion, as mentioned by Nederhof \& Sarbo (1993) \cite{nederhof93}.
+
+\subsection{`Dangling Else'}
+\label{ssec:dangling_else}
+
+A common pitfall that could be encountered is the parsing of keywords in many programming languages.
+For example, if the production rules for keywords in a language consisted of $\ \cdots\ |\ \texttt{'in'}\ |\ \texttt{'include'}\ |\ \cdots$ there may be a number of issues.
+The first of which is the order in which the rules are tested in.
+As \texttt{Alternative} will attempt the rules from left-to-right (as mentioned in \autoref{ssec:alternative}), once it matches \texttt{'in'}, it will have parsed a keyword, with the remainder being \texttt{'clude'}, rather than parsing the longest string.
+As such, some care will need to be taken when constructing rules for possible ambiguity.
+
+Another pitfall may arise without the use of \texttt{attempt}.
+For example, if the grammar were to be rewritten as $\ \cdots\ |\ \texttt{'include'}\ |\ \texttt{'in'}\ |\ \cdots$, without using \texttt{attempt}, once it fails to match \texttt{'include'} on the input string \texttt{'in'}, it would've already consumed input, causing \texttt{'in'} to fail to match.
+
+\subsection{Overuse of Backtracking}
+\label{ssec:over_backtrack}
+
+As shown previously, the use of \texttt{attempt} can essentially provide infinite lookahead - an extremely powerful property.
+However, using \texttt{attempt} can often come with a performance penalty (exponential time and space in the worst case \cite{leijen01}), therefore care must be taken to prevent this by only using it when necessary.
+Furthermore, the quality of error messages can also be decreased.
+
+In order to remedy this, it is possible to left-factor the grammar to accommodate shared prefixes as discussed by Hutton \& Meijer (1999) \cite{hutton99} thus allowing for parsing to complete in linear time.
+However, this can often be a tedious process that complicates the parser and reduces parity between the parser and the original grammar.
+As such, \texttt{attempt} may be used in lieu of designing parsers with care.

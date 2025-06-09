@@ -1,0 +1,12 @@
+\chapter{Evaluation}
+\label{chap:evaluation}
+
+While \autoref{chap:soundness} verified the theoretical soundness of the transformations performed, it is equally important to consider the efficacy of the optimisations discussed in \autoref{chap:oaa} when applied to real examples.
+This chapter begins by exploring how these optimisations perform when applied to actual parsers, some approximations for optimisation complexity, and finishes by analysing the performance of the library introduced in \autoref{chap:library} against existing solutions.
+
+For the purpose of consistency, all performance tests are run on a machine equipped with an i7-10750H\footnote{\url{https://ark.intel.com/content/www/us/en/ark/products/201837/intel-core-i710750h-processor-12m-cache-up-to-5-00-ghz.html}} and 16GB of DDR4 at 3200 MT/s.
+TypeScript-based experiments are all run on version 10.8.0 of \textit{ts-node}\footnote{\url{https://www.npmjs.com/package/ts-node}}.
+
+\input{evaluation/oaa.tex}
+\input{evaluation/preproc.tex}
+\input{evaluation/ts_compare.tex}

@@ -1,0 +1,61 @@
+\section{Normalisation}
+\label{sec:sound_normalisation}
+
+Similar to the reduction rules, the normalisation rules are used within the left recursion rewriting process.
+Validity is shown for the normalisation steps, as well as for any function transformations that occur.
+
+\subsection{Normalisation of \texttt{p \pa (f \constfmapl q) \ap r}}
+Note that unlike the other cases, this case contains an additional discarded parser (\texttt{q}).
+The goal is to show that the normalisation of $\texttt{a} = \texttt{p \pa (f \constfmapl q) \ap r}$ to $\texttt{b} = \texttt{lift2(f}_\texttt{u}\texttt{, p, q \apr r)}$ is sound.
+
+\begin{align*}
+    \texttt{a} =\ & \texttt{pure (flip (\$)) \ap p \ap (f \constfmapl q) \ap r} & \equi[1] \\
+    =\ & \texttt{pure (flip (\$)) \ap p \ap (pure (const f) \ap q) \ap r} & \equi[13] \\
+    =\ & \texttt{pure (.) \ap (pure (flip (\$)) \ap p) \ap} & \equi[4] \\
+    & \texttt{pure (const f) \ap q \ap r} \\
+    =\ & \texttt{pure (.).(flip (\$)) \ap p \ap pure (const f) \ap q \ap r} & \equi[7] \\
+    =\ & \texttt{pure }\overbrace{\texttt{(\textbackslash g -> g (const f)).((.).(flip (\$)))}}^{\alpha}\texttt{ \ap p \ap} & \equi[8] \\
+    & \texttt{q \ap r} \\
+    \texttt{b} =\ & \texttt{pure }\underbrace{\texttt{(\textbackslash g -> g FC).((.).((.).f))}}_{\beta}\texttt{ \ap p \ap q \ap r} & \text{(*)} \\
+    \alpha =\ & (\lambda g \to g\ ((\lambda pq \to p)\ f)) \cdot ((\cdot) \cdot (\lambda xh \to h\ x)) \\
+    =\ & (\lambda g \to g\ (\lambda q \to f)) \cdot ((\cdot) \cdot (\lambda xh \to h\ x)) \\
+    =\ & \lambda x \to (\lambda g \to g\ (\lambda q \to f)) (((\cdot) \cdot (\lambda xh \to h\ x))\ x) \\
+    =\ & \lambda x \to (\lambda g \to g\ (\lambda q \to f)) ((\cdot)(\lambda h \to h\ x)) \\
+    =\ & \lambda x \to (\lambda h \to h\ x) \cdot (\lambda q \to f) \\
+    =\ & \lambda xy \to (\lambda h \to h\ x)\ f \\
+    =\ & \lambda xy \to f\ x \\
+    =\ & \lambda xyz \to f\ x\ z \\
+    \beta =\ & \lambda xyz \to f\ x\ z & \text{(*)}
+\end{align*}
+Note that the results for \texttt{b} and $\beta$ are reused from \autoref{ssec:reduce_discard} for brevity.
+Using these results, $\alpha = \beta$, therefore $\texttt{a} = \texttt{b}$ - hence the normalisation is sound.
+% It is important to note that \texttt{attempt}s are assumed to some extent, as the left-recursion analysis stage fundamentally alters the semantics of the parser.
+% This allows the rewriting rules to use full distributivity of applicatives over alternatives (compared to only right-distributivity).
+
+\subsection{Normalisation of \texorpdfstring{\texttt{f \fmap (p \mult q)}}{F<fmap>(P<mult>Q)}}
+The goal is to show that normalising $\texttt{a} = \texttt{f \fmap (p \mult q)}$ to $\texttt{b} = \texttt{lift2(g}_\texttt{u}\texttt{, p, q)}$ is sound.
+\begin{align*}
+    \texttt{a} =\ & \texttt{pure f \ap (p \mult q)} & \equi[5] \\
+    =\ & \texttt{pure f \ap (pure (,) \ap p \ap q)} & \equi[11] \\
+    =\ & \texttt{pure (.) \ap pure f \ap (pure (,) \ap p) \ap q} & \equi[4] \\
+    =\ & \texttt{pure f. \ap (pure (,) \ap p) \ap q} & \equi[3] \\
+    =\ & \texttt{pure }\underbrace{\texttt{(f.).(,)}}_{\alpha}\texttt{ \ap p \ap q} & \equi[7] \\
+    \alpha =\ & (f \cdot) \cdot (,) \\
+    =\ & \lambda x \to (f \cdot) (x,) \\
+    =\ & \lambda xy \to f\ (x, y)
+\end{align*}
+
+The function \texttt{g} can trivially be constructed as one that takes in two arguments and combines them into a tuple, which is then passed into \texttt{f}, as shown in $\alpha$.
+
+\subsection{Normalisation of \texttt{p \pa pure f \ap q}}
+The goal is to show that a normalisation step from $\texttt{a} = \texttt{p \pa pure f \ap q}$ to $\texttt{b} = \texttt{lift2(f}_\texttt{u}\texttt{, p, q)}$ is sound.
+\begin{align*}
+    \texttt{a} =\ & \texttt{pure (flip (\$)) \ap p \ap pure f \ap q} & \equi[1] \\
+    =\ & \texttt{pure }\underbrace{\texttt{(\textbackslash g -> g f).(flip (\$))}}_{\alpha}\texttt{ \ap p \ap q} & \equi[8] \\
+    \alpha =\ & (\lambda g \to g\ f) \cdot (\lambda xf \to f\ x) \\
+    =\ & \lambda x \to (\lambda g \to g\ f)(\lambda f \to f\ x) \\
+    =\ & \lambda x \to (\lambda f \to f\ x)\ f \\
+    =\ & \lambda x \to f\ x
+\end{align*}
+
+As $\alpha$ can be shown to be equivalent to \texttt{f}, it follows that $\texttt{a} = \texttt{b}$, hence the normalisation step is valid.

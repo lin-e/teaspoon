@@ -1,0 +1,325 @@
+\section{Left Recursion Analysis}
+\label{sec:lrec_analysis}
+
+A common pitfall of recursive descent parsers, and by extension parser combinators, is the inability to handle left-recursion.
+While techniques exist to manually manipulate a grammar, they can often be mechanical and slow.
+Additionally, parser combinators typically contain significantly more information than just the parsing structure, often including semantics on how subtrees (of parsers) should be combined.
+This section introduces how left recursion can automatically be detected and rewritten in a form that can terminate via iteration \cite{willis21}, while preserving the desired, user-defined semantics.
+
+\subsection{First Sets}
+\label{ssec:first_sets}
+
+In order to begin analysing left recursion, the first step is to determine a programmatic method of checking if a production is left-recursive in the first place.
+More importantly, the alternatives (if any) that are not left-recursive also need to be deduced.
+
+The first set of a production can be intuitively thought of as anything that can begin the derivation for a particular rule.
+In a traditional grammar, this is simply a union over the first sets of all disjunctions (alternatives) of a rule.
+The first set of a rule without disjunctions is the first set of the first element in the rule, which can then be recursively computed.
+Finally, the first set of a terminal is a set containing only itself.
+The same intuition can be carried forwards to parser combinators.
+
+Let $\mathcal{F}$ represent the \textbf{global} first set and $\mathcal{L}$ represent the \textbf{local} first set.
+The local first set is defined as follows on combinators (note that $\texttt{i}_\texttt{0}$ denotes the first character of the string literal that \texttt{i} represents (which can be an escape sequence) and \texttt{<X>} denotes any arbitrary combinator):
+\begin{align*}
+    \mathcal{L}(\texttt{p \choice q}) & = \mathcal{L}(\texttt{p}) \cup \mathcal{L}(\texttt{q}) & \text{union for choice} \\
+    \mathcal{L}(\texttt{f \constfmapl p})\ |\ \mathcal{L}(\texttt{f \fmap p}) & = \mathcal{L}(\texttt{p}) & \text{non-parser on left} \\
+    \mathcal{L}(\texttt{p \constfmapr f})\ |\ \mathcal{L}(\texttt{p \pamf f}) & = \mathcal{L}(\texttt{p}) & \text{non-parser on right} \\
+    \mathcal{L}(\texttt{pure x <X> p}) & = \mathcal{L}(\texttt{p}) & \text{\texttt{pure} ($\varepsilon$) first} \\
+    \mathcal{L}(\texttt{p <X> q}) & = \begin{cases}
+        \mathcal{L}(p) & \text{if } \mathcal{L}(p) \neq \varnothing \\
+        \mathcal{L}(q) & \text{otherwise}
+    \end{cases} & \text{any other combinator} \\
+    \mathcal{L}(\texttt{pure x})\ |\ \mathcal{L}(\texttt{empty}) & = \varnothing & \text{empty set} \\
+    \mathcal{L}(\texttt{i: Id}) & = \{ \texttt{i} \} & \text{`terminal'}\\
+    \mathcal{L}(\texttt{a: Atom}) & = \{ \texttt{a} \} & \text{`terminal'} \\
+    \mathcal{L}(\texttt{i: IRLiteral}) & = \begin{cases}
+        \{ \texttt{i}_\texttt{0}, \texttt{i} \} & \text{if string / char} \\
+        \{ \texttt{i} \} & \text{otherwise}
+    \end{cases} & \text{`terminal'}
+\end{align*}
+
+The computation of the local first set is done via the use of pattern matching in Scala, with recursion when required.
+Also note that the results of the first set computation is memoised in the shared mutable state, preventing a possibly expensive recomputation at the cost of space.
+
+Note that the computation for the first set of a function is similar, by looking at the first parser in the function's arguments.
+One important distinction is that the local first set considers identifiers, which are typically references to other parsers (productions), as a terminal, which is incorrect.
+While this alone allows for some simple left-recursive productions to be detected, it does not yet fully account for indirect left recursion.
+As the preprocessor has a wider view of the program, it is feasible to obtain the global first set of all productions.
+
+Consider all lexical declarations that can occur in the program.
+Looking at only parsers (other declarations will have a first set computed, but are meaningless), a declaration refers to any statement that declares a value (reassignments are not supported), such as \texttt{p = q}.
+In this case, \texttt{p} is the parser of interest, which is an identifier assignment.
+The value of the assignment, \texttt{q}, can be in any of the forms listed above, including disjunctions.
+
+A relation $L$, where $\langle p, a \rangle$ denotes $a$ (a parser) as being in the \textbf{local} first set of $p$ (an identifier), is defined as the following:
+
+$$L = \{ \langle p, a \rangle\ |\ a \in \mathcal{L}(p) \}$$
+
+The global first set can then be computed as the \emph{transitive closure} of $L$, such that $\mathcal{F} = L^+$.
+Note that the transitive closure $L^+$ refers to the smallest transitive set containing $L$.
+A binary relation $R$ on \texttt{IR} is defined as transitive if for all $p, q, r \in \texttt{IR}$ if $\langle p, q \rangle$ and $\langle q, r \rangle$ both exist, then $\langle p, r \rangle$ must exist, or formally:
+
+$$\forall p, q, r \in \texttt{IR}\ [\langle p, q \rangle \in R \land \langle q, r \rangle \in R \Rightarrow \langle p, r \rangle \in R]$$
+
+This can be computed by adding `missing' tuples by repeatedly performing relation composition until the relation is transitive.
+As each step of adding missing tuples is required for transitivity, this creates the minimal set - the transitive closure.
+In practice, this computation is done by first scanning the entire program's AST for declarations and computing the local first set, creating a mapping from \texttt{String} (the identifier) to \texttt{Set[IR]}.
+The transitive closure is then computed by iteratively expanding any identifiers found in a first set to the identifier's respective first set until all identifiers (in the expanded first set) have been visited.
+
+Consider the following example of a parser that contains indirect left recursion:
+
+\begin{minted}{teaspoon_lex.py:TeaspoonLexer -x}
+    val a  = '1' $> 1;
+    lazy p = f <$> q <*> a <|> a;
+    lazy q = p <* '+';
+\end{minted}
+
+The following result is obtained, using the rules for \textbf{local} first sets and the subsequent construction of $\mathcal{F}$.
+Note that expansion is an iterative process, as seen in $\mathcal{F}(\texttt{q})$, where the expansion of \texttt{p} leads to further expansion on \texttt{a}.
+\begin{align*}
+    \mathcal{L}(\texttt{a}) & = \{ \texttt{'1'} \} \\
+    \mathcal{L}(\texttt{p}) & = \{ \texttt{q}, \texttt{a} \} \\
+    \mathcal{L}(\texttt{q}) & = \{ \texttt{p} \} \\
+    \mathcal{F}(\texttt{a}) & = \{ \texttt{'1'} \} & \text{no identifiers} \\
+    \mathcal{F}(\texttt{p}) & = \{ \texttt{p}, \texttt{q}, \texttt{a}, \texttt{'1'} \} & \texttt{q} \mapsto \{ \texttt{q}, \texttt{p} \}, \texttt{a} \mapsto \{ \texttt{a}, \texttt{'1'} \} \\
+    \mathcal{F}(\texttt{q}) & = \{ \texttt{p}, \texttt{q}, \texttt{a}, \texttt{'1'} \} & \texttt{p} \mapsto \{ \texttt{p}, \texttt{q}, \texttt{a} \} \mapsto \{ \texttt{p}, \texttt{q}, \texttt{a}, \texttt{'1'} \}
+\end{align*}
+
+\subsection{Detection}
+\label{ssec:lrec_detection}
+
+By computing the first sets $\mathcal{F}$, it is now possible to detect all three forms of left recursion; direct (from the local first set), indirect (via the transitive closure on local first sets), and hidden (via the rules in place to deal with $\varepsilon$).
+Recall that a parser is left-recursive when it is able to derive some form, after some number of substitutions (or none), with itself as the first parser \cite{power99}.
+Intuitively, this means left recursion occurs when a parser contains a rule where the derivation begins with itself.
+As such, a parser \texttt{p} is left-recursive if it is contained within its own first set; $\texttt{p} \in \mathcal{F}(\texttt{p})$.
+
+However, simply detecting a parser is left-recursive is not enough to begin rewriting it.
+The more common form is as follows, where some rules ($\texttt{r}_\texttt{i}$) are left-recursive, but others ($\texttt{q}_\texttt{j}$) are not:
+
+\begin{capminted}
+    \begin{minted}{teaspoon_lex.py:TeaspoonLexer -x}
+        lazy p = r_1 <|> ... <|> r_m <|> q_1 <|> ... <|> q_n;
+    \end{minted}
+    \vspace{-0.5\baselineskip}
+    \caption{Example of parser \texttt{p} in a general form}
+    \label{lst:p_general}
+\end{capminted}
+
+In order to rewrite the structure of \texttt{p}, the disjunctions must first be partitioned into those which are locally left-recursive (\texttt{R}) and those which are not (\texttt{Q}).
+Note that the use of $\text{disjunctions}(\texttt{p})$ refers to the set of alternatives for \texttt{p}.
+\begin{align*}
+    \text{disjunctions}(\texttt{p}) & = \{ \texttt{r}_\texttt{1}, \dots, \texttt{r}_\texttt{m}, \texttt{q}_\texttt{1}, \dots, \texttt{q}_\texttt{n} \} & \text{from example above} \\
+    \texttt{R} & = \{ \pi \in \text{disjunctions}(\texttt{p})\ |\ p \in \mathcal{L}(\pi) \} \\
+    \texttt{Q} & = \{ \pi \in \text{disjunctions}(\texttt{p})\ |\ p \notin \mathcal{L}(\pi) \}
+\end{align*}
+
+The use of local left recursion (rather than global) allows for safer restructuring - hoisting in declarations may lead to unintended consequences as well as generally more verbose, thus less legible, generated code.
+In order to allow for declarations that can be safely hoisted in, the lexical declaration \texttt{inline} has been implemented, as mentioned in \autoref{ssec:inline}.
+As such, all three forms of left recursion can be detected, however, only direct left recursion can be rewritten.
+The other forms are quite infrequent in most grammars, as mentioned in Parr et al. (2014) \cite{parr14}.
+
+\subsection{Rewriting}
+\label{ssec:lrec_rewrite}
+It is important to note that by rewriting the productions, the preprocessor will fundamentally alter the semantics of these parsers.
+Parsers which previously would not terminate due to infinite recursion are now modified to parse iteratively, with termination being possible.
+
+This is done in three steps; normalisation, reduction, and finally, rewriting.
+The underlying idea behind rewriting left recursion is to convert a `standard' production into a parser that utilises \texttt{postfix}.
+Note that \texttt{postfix} was chosen (rather than \texttt{infixl}, or similar \cite{willis21}) as it provided the most `general' form - it is able to automatically handle infix operators as well as postfix operators.
+This property is desirable, especially in the context of automatic rewriting; while the generated program may be less concise, it allows for more forms of detection, as well as a reduced likelihood of errors, thus requiring less manual intervention.
+
+Consider the following (direct) left-recursive production, similar to the previous declaration of \texttt{p};
+$$P \to \underbrace{\overbrace{Ps_1}^{r_1}\ |\ \dots\ |\ \overbrace{Ps_m}^{r_m}}_{\texttt{R}}\ |\ \underbrace{q_1\ |\ \dots\ |\ q_n}_{\texttt{Q}}$$
+
+On a translation to a PEG, the recursive productions simply become repetition operators as stated in Ford (2004) \cite{ford04}, thus the following result is obtained (CFG to PEG);
+$$P \leftarrow (q_1\ /\ \dots\ /\ q_n)(s_1\ /\ \dots\ /\ s_m)*$$
+
+This result is similar to that of Hill (1994) \cite{hill94}.
+Note that $P$ may appear in $s_j$, such as in the case of addition ($E \to E \texttt{ '+' } E$) where $P = E$ and $s_j = \texttt{'+' } E$.
+However, the rewriting remains valid as long as $P \notin \mathcal{F}(s_j)$.
+Note that the rewrite still occurs if $P \in \mathcal{F}(s_j)$ but $P \notin \mathcal{L}(s_j)$, however, the preprocessor will raise a warning regarding a possible indirect or hidden left recursion.
+
+However, this translation of a CFG to a PEG must be mirrored in terms of parser combinators, which not only carries syntactic information in terms of the parse structure, but has underlying semantics in terms of how the parsed results are used (or not used).
+This raises a number of challenges: the same grammar can exist in multiple forms (lack of normalisation) and combinators carry semantic information as well as syntactic information.
+
+The first of which is that parser combinators can exist in a number of forms which represent the same underlying grammar.
+For example, the four following combinators all represent $P_i \to P_i S\ |\ Q$:
+
+\begin{minted}{teaspoon_lex.py:TeaspoonLexer -x}
+    lazy p_0 = f_0 <$> p_0 <*> s <|> q;
+    lazy p_1 = p_1 <**> pure(f_1) <*> s <|> q;
+    lazy p_2 = f_2 <$> p_2 <~> s <|> q;
+    lazy p_3 = lift2(f_3, p_3, s) <|> q;
+\end{minted}
+
+The second problem is preserving the semantics of the parse - note that in the example above, there is an additional transformation that is applied to each of the $P_i S$ disjunctions.
+While it may be quite intuitive to reason about the behaviour of the function at a glance, any changes to the parser, which may be numerous, must be accurately reflected in how the function is transformed (recall the rewriting of certain functions from \autoref{ssec:func_rewrite}).
+Without this constraint, a rewritten parser would simply verify if the structure is correct and give the sequence of parsers applied - this is only sufficient for recognisers.
+While parser generators will still require tree reassociation, the semantics are provided `externally' (outside the parser generator) over the parse tree, which is not the case for parser combinators.
+
+\subsubsection*{Normalisation}
+The first problem is addressed via normalisation and reduction.
+In order to aid the subsequent steps, any locally left-recursive parsers are matched against a series of patterns in order to extract the required elements.
+The chosen normal form for the majority of operators is $\texttt{p} = \texttt{lift2(f, q, r)}$ - this allows for a clear separation between three key components; \texttt{f} (an uncurried function), \texttt{q} (the left recursion), and \texttt{r} (the `remainder' or suffix).
+Notice that the left recursion does not necessarily have to be \texttt{p} - just that $\texttt{p} \in \mathcal{L}(\texttt{q})$.
+
+Note that any patterns using `reverse fmap' (\texttt{\pamf}) will be omitted for brevity; simply replace a use of \texttt{f \fmap p} with \texttt{p \pamf f}, additionally patterns using `const fmap' such as \texttt{x \constfmapl p} can be substituted with \texttt{p \constfmapr x}.
+Some normalisation patterns are as follows:
+
+\begin{capminted}
+    \begin{minted}{scala}
+        p match {
+            case (f <$> q) <*> r          => Lift2(Uncurry(f), q, r)
+            case (f <$> (q <~> r))        => Lift2(ArgsToTuple(f), q, r)
+            case (q <**> Pure(f)) <*> r   => Lift2(Uncurry(f), q, r)
+            case q <**> (f <$> r)         => Lift2(Uncurry(Flip(f)), q, r)
+            case (q <**> (f <$ op)) <*> r => Lift2(Uncurry(f), q, op *> r)
+            // ...
+        }
+    \end{minted}
+    \vspace{-0.5\baselineskip}
+    \caption{Examples of normalisation steps for common patterns}
+    \label{lst:scala_normalisation}
+\end{capminted}
+
+While these patterns cannot account for every possible combination, when coupled with the later reduction steps, they can deal with a variety of parsers in various common forms.
+The validity of these normalisation steps is detailed in \autoref{sec:sound_normalisation}.
+
+\subsubsection*{Reduction}
+Recall that the recursive component of $\texttt{p} = \texttt{lift2(...)}$ does not necessarily have to be \texttt{p}.
+However, the end goal is to `reduce' this component down to just be \texttt{p}.
+This is done via a sequence of reduction steps, which monotonically simplifies the recursive component; the complexity of a component can be quantified as the size of the combinator tree representing it.
+By requiring a constraint where the structure is monotonically simplified, termination is guaranteed - resulting in a successful reduction or a failed reduction (which causes the preprocessor to roll back any transformations made on a particular disjunction).
+
+Similar to the normalisation step, some patterns will be omitted for brevity if they are equivalent to another pattern, albeit with flipped arguments.
+Additionally, \texttt{\apl} and \texttt{\multl} are equivalent and thus have the same reduction rules.
+Function shorthand will also contain \texttt{UFA(f)} and \texttt{MFA(f)} to represent \texttt{UnpairFirstArg(f)} and \texttt{MapFirstArg(f)}, respectively.
+
+\begin{capminted}
+    \begin{minted}{scala}
+        p match {
+            case Lift2(f, r <* s, q)   => _Lift2(f, r, s *> q)
+            case Lift2(f, g <$> r, q)  => _Lift2(MFA(g, f), r, q)
+            case Lift2(f, c <$ r, q)   => _Lift2(MFA(Const(c), f), r, q)
+            case Lift2(f, r <~> s, q)  => _Lift2(UFA(f), r, s <~> q)
+            case Lift2(f, r <*> s, q)  => _Lift2(f, AFM <$> (r <~> s), q) // (1)
+            case Lift2(f, r <**> s, q) => _Lift2(f, PFM <$> (r <~> s), q) // (1)
+            case Lift2(f, r <:> s, q)  => _Lift2(f, ((:) <$> r) <*> s, q) // (2)
+            // ...
+        }
+    \end{minted}
+    \vspace{-0.5\baselineskip}
+    \caption{Some \texttt{lift2} reduction cases, note that \texttt{\_Lift2} is a `smart constructor' that performs further reductions}
+    \label{lst:scala_reduction}
+\end{capminted}
+
+The validity of these reductions is proven via equivalences in \autoref{sec:sound_reductions}.
+Note that the rules for \texttt{\ap} and \texttt{\pa} bootstrap off of the existing reduction steps for \texttt{\mult} and \texttt{\fmap}, based on the idea of recovering applicative from monoidal, as stated by McBride \& Paterson (2008) \cite{mcbride08}.
+As such, the reduction is implemented in a way that adds complexity to begin with but reduces in a fixed, finite number of steps to a simpler form, thus maintaining the monotonically decreasing constraint.
+The same idea is applied for \texttt{<:>} (lifted cons), however this also builds on the use of \texttt{\ap}.
+
+\subsubsection*{Postfix}
+
+Prior to this point, the parsers were still left-recursive.
+Nothing has been done to change the semantics yet, however left-recursive disjunctions have been `reconditioned'; the aforementioned problems (the lack of a normal form and the preservation of parse semantics) have been dealt with.
+Recall the earlier example of \texttt{p}, shown in \autoref{lst:p_general}.
+In the ideal case, this parser would have become reconditioned to the following;
+\begin{capminted}
+    \begin{minted}{teaspoon_lex.py:TeaspoonLexer -x}
+        lazy p = lift2(f_1, p, s_1) <|> ... <|> lift2(f_m, p, s_m) <|>
+                 q_1 <|> ... <|> q_n;
+    \end{minted}
+    \vspace{-0.5\baselineskip}
+    \caption{Example of parser \texttt{p}, after normalisation and reduction}
+    \label{lst:p_norm_reduce}
+\end{capminted}
+
+Using the previous partitioning of \texttt{Q} and \texttt{R}, where the latter represents left-recursive disjunctions, it follows that the newly created \texttt{lift2}s fall into the \texttt{R} partition.
+Note that \texttt{postfix} and \texttt{lift2} have the following types - additionally, in the case of \texttt{lift2} there is the constraint that $\texttt{C} = \texttt{A}$, as \texttt{p} has the type \texttt{P<A>}.
+
+\begin{capminted}
+    \begin{minted}{typescript}
+        function postfix(q: P<A>, op: P<(a: A) => A>): P<A>;
+        function lift2(f: (a: A, b: B) => C, p: P<A>, q: P<B>): P<C>;
+    \end{minted}
+    \vspace{-0.5\baselineskip}
+    \caption{Types involved for postfix conversion}
+    \label{lst:conv_types}
+\end{capminted}
+
+Using these types as guide, the next natural step is to populate the parameters of \texttt{postfix} as required, resulting in a parser that replaces recursion with iteration.
+The semantics of \texttt{postfix} are that it parses one \texttt{q} and then zero or more occurrences of \texttt{op}, applying the result to some accumulating value.
+Naturally, \texttt{q} must be the non-recursive cases found in the \texttt{Q} partition.
+However, \texttt{Q} represents a collection of parsers, which can trivially be changed into a parser by reducing as alternatives (\texttt{\choice}).
+
+The remaining work lies in converting the recursive cases into \texttt{op}s (which can then be reduced in the same way).
+Recall that work was done to ensure that \texttt{lift2} followed the same structure, where \texttt{p} is isolated in all alternatives.
+Consider a single recursive disjunction, $\texttt{lift2(f, p, s)} \in \texttt{R}$.
+If the value for \texttt{b} (the second argument) were to be pre-populated in \texttt{f}, the resulting function would be ideal for \texttt{postfix}.
+
+This can be seen in \autoref{lst:sub1_p}, where the parser simply subtracts 1 from the number parsed.
+In this example, the argument \texttt{b} is represented by \texttt{y}.
+However, it is clear that this will be 1: the result of the second `parser' (\texttt{pure(1)}).
+If this value were to be populated, the resultant function would resemble \texttt{(x: number) => x - 1}, which is the desired effect.
+Of course, this would have to be done to accommodate an arbitrary parsed result, not just a constant.
+
+\begin{capminted}
+    \begin{minted}{typescript}
+        let sub1 = lift2((x: number, y: number) => x - y, nat, pure(1));
+    \end{minted}
+    \vspace{-0.5\baselineskip}
+    \caption{Simple example of \texttt{lift2} to demonstrate pre-populating an argument}
+    \label{lst:sub1_p}
+\end{capminted}
+
+This is done by first currying \texttt{f}, which has the type \texttt{(a: A) => (b: B) => A}.
+By flipping this curried function, the resultant type is \texttt{(b: B) => (a: A) => A}.
+Finally, this can be partially applied with `fmap' (\texttt{\fmap}), with the result (\texttt{flip(curry(f)) \fmap r}) being of the desired type.
+This transformation is performed on all alternatives in \texttt{R}, which is then reduced.
+Validity of this transformation is further discussed in \autoref{sec:sound_rewrite}.
+
+The earlier example, shown in \autoref{lst:p_general} and \autoref{lst:p_norm_reduce}, is finally rewritten into:
+\begin{capminted}
+    \begin{minted}{teaspoon_lex.py:TeaspoonLexer -x}
+        lazy p = postfix(q_1 <|> ... <|> q_n,
+            flip(curry(f_1)) <$> s_1 <|> ... <|>
+            flip(curry(f_m)) <$> s_m
+        );
+    \end{minted}
+    \vspace{-0.5\baselineskip}
+    \caption{Example of parser \texttt{p}, after rewriting}
+    \label{lst:p_rewrite}
+    \vspace{-\baselineskip}
+\end{capminted}
+
+\subsection{Worked Example}
+\label{ssec:worked_ex}
+
+Recall the example of addition first introduced in \autoref{lst:running_example} and the subsequent IR in \autoref{lst:running_ir}.
+The code matches the pattern \texttt{q \pa (f \constfmapl op) \ap r} exactly, with no requirement for reduction.
+In this case (let \texttt{C('+')} denote \texttt{Chr(IRLiteral("'+'"))} for brevity):
+
+\begin{center}
+    \vspace{-2\baselineskip}
+    \begin{minipage}[t]{0.49\textwidth}
+        \begin{align*}
+            \texttt{q} & = \texttt{Id("expr")} \\
+            \texttt{f} & = \texttt{Atom(0)}
+        \end{align*}
+    \end{minipage}
+    \hfill
+    \begin{minipage}[t]{0.49\textwidth}
+        \begin{align*}
+            \texttt{op} & = \texttt{C('+')} \\
+            \texttt{r} & = \texttt{Id("nat")}
+        \end{align*}
+    \end{minipage}
+\end{center}
+
+Trivially, this is converted into \texttt{lift2(u(f), Id("expr"), C('+') \apr Id("nat"))}.
+As this is already in the desired shape, where the left recursion is the first parser, it can be converted into a \texttt{postfix} operation.
+This is then rewritten into the following (the \violet{violet} component is the result of the function after converting from the IR):
+
+$$\underbrace{\texttt{flip(curry(u(f)))}}_{\violet{\texttt{(y) => (x) => x + y}}} \texttt{ \fmap (C('+') \apr Id("nat"))}$$
+
+Notice how the first application, which would be to the result of \texttt{Id("nat")}, is the argument \texttt{y}, thus pre-populating the function as desired.

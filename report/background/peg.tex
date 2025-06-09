@@ -1,0 +1,17 @@
+\section{Parsing Expression Grammars}
+\label{sec:peg}
+
+Parsing Expression Grammars (PEGs), described by Ford (2004) \cite{ford04}, provides a formal recognition-based language that is closely related to the top-down parsing language (TDPL) specified by Birman (1970) \cite{birman70} (later named by Aho \& Ullman (1972) \cite{aho72}). % named by \cite{aho72}
+Context-free grammars (CFGs) are designed to express natural language and do so extremely well.
+However, this generality can become too `powerful' for programming languages, thus leading to ambiguities.
+PEGs reduce this generality and provides a key differentiating factor: deterministic choices via the use of priorities.
+In EBNF (Extended Backus-Naur Form), the choice operator is commutative, therefore \texttt{a | b} is equivalent to \texttt{b | a}.
+However, as mentioned in \autoref{ssec:alternative}, this property does not hold for parser combinators.
+Instead, the semantics of alternatives closely mirror that of PEGs, where \texttt{a / b} is not equivalent to \texttt{b / a} - the former first attempts \texttt{a} and only attempts \texttt{b} if \texttt{a} fails (ignoring input consumption) and vice versa for the latter.
+This allows for the `dangling else' ambiguity, introduced in \autoref{ssec:dangling_else}, to be trivially resolved by having the `longest' production first.
+
+Parsing is inherently a problem regarding the decomposition of structure.
+As such, a recognition-based system (such as PEGs) is more suitable compared to generative systems (including CFGs).
+The former determines whether a given string is valid in the language, whereas the latter defines a language by recursively generating strings \cite{ford04}.
+
+In addition to the introduction of the prioritised choice binary operation, operators such as $p+$, $q*$, and $r?$ (representing one-or-more $p$s, zero-or-more $q$s, and an optional $r$, respectively) are also included.

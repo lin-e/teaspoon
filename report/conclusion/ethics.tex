@@ -1,0 +1,18 @@
+\section{Ethical Issues}
+\label{sec:ethics}
+
+Due to the nature of this project, there are no reasonable, direct ethical concerns.
+However, as with all contributions, dual use may still apply.
+The same argument would be made for any parser, compiler, or programming tool in general - it is not out of the question that the utility could be used for malicious purposes.
+Similarly, it is possible that the tool could be used to produce code that may need to follow export laws.
+One could argue that with both of these scenarios, the nature of what is produced is unchanged from what is fed into it: if malicious code is processed, then malicious code is generated.
+
+A possible concern may lie in the code generation, as the semantics of parsers can be changed after some optimisations.
+As such, this could lead to unintended side effects.
+This is also important from the use of the preprocessor as part of an automated pipeline - if a malicious actor were to modify how the code is generated in the preprocessor, the input program could be tampered with to cause unintended, harmful side effects without the user being aware.
+
+This project utilises two libraries: \textit{Parsley} \cite{willis18} for parsing and \textit{scopt} \cite{scopt} for command-line options.
+As such, this project needs to adhere to the licences these libraries fall under, BSD 3-clause and MIT, respectively.
+In this situation, both licences allow for private and commercial use, as well as distribution and modification.
+It comes with no warranty nor liability, and the name cannot be used without consent.
+Additionally, the same disclaimer must be provided.

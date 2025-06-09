@@ -1,0 +1,211 @@
+\section{Types}
+\label{sec:type}
+
+Throughout this section, the type \texttt{Parser} will be used.
+In TypeScript, the host language for the project, this is defined as the following (where \texttt{Result} captures whether input is consumed, as well as whether the parser succeeded).
+
+\begin{minted}{typescript}
+type Parser<A> = (s: State) => Result<A>;
+\end{minted}
+
+However, for brevity and readability, Haskell's type syntax will be used instead.
+Note that TypeScript does not have a specific type for characters, as such any use of \texttt{Char} in Haskell would be a use of \text{string} in TypeScript (however, a fixed length of 1 is assumed).
+Note that additional work will also be required to concatenate a list of singleton strings into a single string, which will likely lead to the produced code being more verbose.
+
+\subsection{Primitives}
+\label{ssec:primitives}
+
+As combinator parsing involves joining together basic primitives, it is natural to begin with the most basic parsers, as described by Hutton \& Meijer (1999) \cite{hutton99}.
+The first primitive is that of a parser that will always succeed if it is able to consume input and fail otherwise.
+This has the signature \texttt{item :: Parser Char}.
+
+On the other hand, a parser that always fails, regardless of the input, is also required.
+Note that this comes from the \texttt{Alternative} typeclass.
+This parser can be referred to as \texttt{empty :: Parser a} - the type of which is irrelevant as no parse tree will be produced.
+
+Finally, a primitive that lifts a pure value into the context of a parser is also required.
+Note that this is in both the \texttt{Applicative} and \texttt{Monad} typeclasses, referred to as \texttt{pure} and \texttt{return} respectively.
+As \texttt{Applicative} is a superclass of \texttt{Monad}, by default \texttt{return} refers to \texttt{pure}.
+This has the following signature:
+
+\begin{minted}{haskell}
+return :: a -> Parser a
+\end{minted}
+
+Alongside \texttt{(>{}>=)} in \autoref{ssec:monad}, this can be used to form the parser \texttt{satisfy}, which parses a character based on a predicate.
+
+While it is possible to define \texttt{satisfy} in terms of \texttt{item}, via the use of \texttt{bind}, it is also possible to go in the `opposite' direction by defining \texttt{item} as \texttt{satisfy (const true)}.
+Using \texttt{satisfy} as the primitive is often preferable when compared to using \texttt{item} as \texttt{bind} significantly decreases the efficacy of inspection.
+This primitive comes from a natural interpretation of reading a character and has the type:
+
+\begin{minted}{haskell}
+satisfy :: (Char -> Bool) -> Parser Char
+\end{minted}
+
+\subsection{Functor}
+\label{ssec:functor}
+
+A functor is a typeclass that allows for a function to be applied to the contained pure value, without altering the overall structure \cite{allen2016haskell}.
+This is done with the following function:
+
+\begin{minted}{haskell}
+fmap :: (a -> b) -> Parser a -> Parser b
+\end{minted}
+
+It can also be written as \texttt{(<\$>)}, for infix notation.
+
+By giving parsers this property, the user is now able to modify the resulting parse tree without changing any other properties of the parse result.
+This includes the success of the result: if it was a failure, then nothing is done.
+A concrete use of this is to create a parser for natural numbers: after consuming a sequence of characters (hence forming a string), it can be converted into an integer, giving a \texttt{Parser Int}.
+
+Using the above, a derived combinator \texttt{(<\$)} arises.
+The first argument is used in place of the resulting parse tree from the second argument (a \texttt{Parser}), if the parse was successful.
+This has the signature:
+
+\begin{minted}{haskell}
+(<$) :: a -> Parser b -> Parser a
+x <$ p = const x <$> p
+\end{minted}
+
+By treating \texttt{Parser}s as \texttt{Functor}s, it is possible to assign meaning to a result, by transforming it beyond that of a literal string.
+
+\subsection{Applicative}
+\label{ssec:applicative}
+
+First note that an alternative typeclass to this is \texttt{Monoidal}, where both can capture the idea of sequencing parsers.
+Earlier references, such as Wadler (1985) \cite{wadler85} and Fokker (1995) \cite{fokker95}, provide sequencing in the form of pairs:
+
+\begin{minted}{haskell}
+(<~>) :: Parser a -> Parser b -> Parser (a, b)
+\end{minted}
+
+While this may seem intuitive for simple combinations of parsers, it can become tedious and difficult to handle when more parsers are sequenced together.
+For example, consider sequencing three parsers, leading to nested pairs:
+
+\begin{minted}{haskell}
+pa   :: Parser a
+pb   :: Parser b
+pc   :: Parser c
+pabc :: Parser ((a, b), c)
+  = pa <~> pb <~> pc
+\end{minted}
+
+In general use cases, the use of pairs to represent sequential operation can become too restrictive.
+Naturally, this leads to a more general form.
+
+Note that \texttt{Applicative}s allow for sequencing of functional computations but do not allow for the use of results from earlier computations (which are provided with \texttt{Monad} in \autoref{ssec:monad}).
+They also do not generally enforce an execution order (however in the context of \texttt{Parser}s, this is enforced by \texttt{Monad}).
+Recall the \texttt{return} `primitive' mentioned earlier in \autoref{ssec:primitives}, in the \texttt{Applicative} context, this is referred to as \texttt{pure}, however the semantics remain the same.
+The method \texttt{(<*>)} can be intuitively thought of as a more general function application \cite{hutton16} in the context of \texttt{Parser}s:
+
+\begin{minted}{haskell}
+(<*>) :: Parser (a -> b) -> Parser a -> Parser b
+\end{minted}
+
+The aforementioned example of \texttt{(\mult)} can be written as follows (in terms of \texttt{<*>}) - note that the first parser is mapped into a parser of a function:
+
+\begin{minted}{haskell}
+px <~> py = (,) <$> px <*> py
+\end{minted}
+
+Important derived combinators that arise from this include the following \cite{yoda}:
+
+\begin{minted}{haskell}
+(<*)   :: Parser a -> Parser b -> Parser a
+p <* q = const <$> p <*> q
+
+(*>)   :: Parser a -> Parser b -> Parser b
+p *> q = flip const <$> p <*> q
+
+(<**>) :: Parser a -> Parser (a -> b) -> Parser b
+p <**> q = (flip ($)) <$> p <*> q
+
+(<:>)  :: Parser a -> Parser [a] -> Parser [a]
+p <:> ps = (:) <$> p <*> ps
+\end{minted}
+
+The first two combinators execute both parsers, and only results in a successful parse when both succeed.
+However, only one of the two parsed results are used, and the other is discarded.
+The next combinator (\texttt{<**>}, or `reverse ap') is similar to the original \texttt{<*>}, but instead has the function as the second parser.
+Finally, the \texttt{<:>} combinator, also referred to as lifted cons, allows joining an element to a list of elements in the \texttt{Parser} context.
+
+In addition to these derived combinators, it is also possible to define `lift's, which combine $n$ parsers using a function.
+Note that the derived combinators can also be defined in terms of lifts.
+For example, \texttt{<:>} and \texttt{<**>} can be defined as the following (in TypeScript), where the first parameter is an uncurried function that contains the desired functionality:
+
+\begin{minted}{typescript}
+  let lift_cons = lift2((p: A, ps: A[]) => [p, ...ps], p, ps);
+  let rev_ap    = lift2((p: A, q: (a: A) => B) => q(p), p, q);
+\end{minted}
+
+With these combinators, it is now possible to parse combinations of primitives, given a completely fixed structure.
+
+\subsection{Alternative}
+\label{ssec:alternative}
+Note that \texttt{Alternative} exists as a subclass of \texttt{Applicative}, additionally it is closely related to \texttt{MonadPlus}, where the zero elements are \texttt{empty} and \texttt{mzero} respectively, and the combining functions are \texttt{(<|>)} and \texttt{mplus}.
+For simplicity, only the \texttt{Alternative} definitions are included.
+
+The \texttt{empty} parser has been previously mentioned in \autoref{ssec:primitives}, as a primitive parser.
+Note that combining any parser with the \texttt{empty} parser by using the combining function will result in the original parser.
+This has the signature:
+
+\begin{minted}{haskell}
+(<|>) :: Parser a -> Parser a -> Parser a
+\end{minted}
+
+This combinator captures the ability to choose between alternatives.
+For example, the parser \texttt{x <|> y} will first attempt to parse \texttt{x}, however if it fails, it will then attempt to parse \texttt{y}.
+Note that with the \textit{Parsec} \cite{leijen01} family of parsers, the second parser is only attempted when the first parser does not consume input.
+However, this behaviour may not be desired thus a parser may want to roll back any consumption, or `backtrack'.
+Backtracking is done with \texttt{try} (in the case of \textit{Parsec}), where the parser acts as if it did not consume input on a failure.
+If both fail, the overall parser fails, however if either succeed, the first to succeed is the result of the parser.
+It is crucial to note that while \texttt{\choice} is associative, it is not commutative.
+
+Alternatives, including \texttt{empty}, provide a number of laws that can be beneficial for performing optimisations.
+Note that these laws are not always general, but hold for parsers.
+These include the left and right neutral laws $(1, 2)$, as well as the left absorption law $(3)$ and left catch law $(4)$:
+\begin{align*}
+    \texttt{empty \choice p} & \Rightarrow \texttt{p} & (1) \\
+    \texttt{p \choice empty} & \Rightarrow \texttt{p} & (2) \\
+    \texttt{empty \ap p} & \Rightarrow \texttt{empty} & (3) \\
+    \texttt{pure x \choice p} & \Rightarrow \texttt{pure x} & (4)
+\end{align*}
+
+The left absorption (zero) law is generally accepted, whereas the right absorption law is not.
+In parsers, the parser \texttt{p} in \texttt{p \ap empty} may consume input, thus changing the state.
+The left catch law essentially states that \texttt{pure} (from \texttt{Applicative}s) represents a successful parse (specifically in the context of parsers).
+
+\bigskip
+
+By using the \texttt{Alternative} typeclass, the parsers are able to capture choice.
+Additionally, this allows for further combinators such as \texttt{many} to be defined, where sequences of arbitrary length can be generated; without choice, a production would either be a fixed finite number, or an infinite length.
+For example:
+
+\begin{lstlisting}
+A ::= 'a' A -- infinitely many 'a's
+B ::= 'b' C -- exactly 2 'b's
+C ::= 'b'   -- exactly 1 'b'
+\end{lstlisting}
+
+However, with choice, it is therefore possible to define the following, where as many \texttt{'a'}s are parsed as possible, until there are no more \texttt{'a'}s to consume (thus terminating the first branch of the parser (\texttt{'a' A})):
+
+\begin{lstlisting}
+A ::= 'a' A | $\varepsilon$
+\end{lstlisting}
+
+\subsection{Monad}
+\label{ssec:monad}
+
+By using the \texttt{Monad} typeclass, the bind operator is introduced.
+This has the signature:
+
+\begin{minted}{haskell}
+(>>=) :: Parser a -> (a -> Parser b) -> Parser b
+\end{minted}
+
+An interpretation of this combinator is similar to that of \texttt{<*>} in \autoref{ssec:applicative}, however the result of the first parser is applied to a function that creates the second parser, rather than being applied to the result of the second parser (which is a function).
+However, as the result of the first parser can directly influence the result of the second parser (since the function can use the result of the first parse), this creates a guarantee on the order of operations.
+The first parser must be executed before the function that produces the second parser can be.
+
+While this permits for context-sensitive parsing, as the function producing the second parser can access the results of the previous parse, it severely impacts the efficacy of inspection and analysis.
+Due to this decrease in efficacy, bind will not be a primary focus for subsequent optimisations, but it is still important to note due to its power (it can implement both \texttt{\ap} and \texttt{\fmap}).

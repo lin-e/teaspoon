@@ -1,0 +1,190 @@
+\documentclass[a4paper, twoside, 11pt]{report}
+
+%% Language and font encodings
+\usepackage[english]{babel}
+\usepackage[utf8x]{inputenc}
+\usepackage[LGR,T1]{fontenc}
+\usepackage{listings}
+\usepackage{lstautogobble}
+% \usepackage{newcomputermodern}
+\usepackage{selinput}
+\usepackage{textalpha}
+\usepackage{minted}
+\usepackage{caption}
+\usepackage{amssymb}
+\usepackage[fleqn]{mathtools}
+\usepackage[numbers]{natbib}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage{pgfplots}
+\usepackage{import}
+\usepackage{xspace}
+\usepackage{enumerate}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage[a4paper,top=3cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+\usepackage{ifthen}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{algorithmicx}
+\usepackage{chngcntr}
+\usepackage{tabularx}
+\usepackage{lineno}
+
+
+\usetikzlibrary{
+    decorations.pathreplacing,
+    arrows,
+    shapes,
+    shapes.gates.logic.US,
+    circuits.logic.US,
+    calc,
+    automata,
+    positioning,
+    intersections,
+    calligraphy,
+    tikzmark
+}
+\setminted{
+    xleftmargin=16pt,
+    breakanywhere=true,
+    breaklines=true,
+    linenos=true,
+    autogobble,
+}
+
+% colours
+\newcommand{\violet}[1]{\textcolor{violet}{#1}}
+\newcommand{\blue}[1]{\textcolor{blue}{#1}}
+\newcommand{\red}[1]{\textcolor{red}{#1}}
+\newcommand{\teal}[1]{\textcolor{teal}{#1}}
+\pgfplotsset{compat=1.16}
+\raggedbottom
+\setcounter{secnumdepth}{4}
+\allowdisplaybreaks % allow environments to break
+
+\def\UrlBreaks{\do\/\do-}
+
+% code listing
+\lstdefinestyle{main}{
+    numberstyle=\tiny,
+    breaklines=true,
+    showspaces=false,
+    showstringspaces=false,
+    tabsize=2,
+    numbers=left,
+    basicstyle=\ttfamily,
+    columns=fixed,
+    fontadjust=true,
+    basewidth=0.5em,
+    autogobble,
+    xleftmargin=3.0ex,
+    mathescape=true
+}
+\newcommand{\dollar}{\mbox{\textdollar}} %
+\lstset{style=main}
+
+\title{Parser Combinators in Languages without User-Defined Operators}
+\author{Eugene Lin}
+
+\frenchspacing
+
+\providecommand*{\listingautorefname}{listing}
+\providecommand*{\algorithmautorefname}{algorithm}
+\newenvironment{capminted}{\captionsetup{type=listing}}{\vspace{\baselineskip}}
+
+\newcommand{\fixtilde}{\raisebox{-0.25em}\textasciitilde}
+
+\newcommand{\mult}{<\fixtilde>\xspace}
+\newcommand{\multl}{<\fixtilde\xspace}
+\newcommand{\multr}{\fixtilde>\xspace}
+\newcommand{\ap}{<*>\xspace}
+\newcommand{\apl}{<*\xspace}
+\newcommand{\apr}{*>\xspace}
+\newcommand{\pa}{<**>\xspace}
+\newcommand{\choice}{<|>\xspace}
+\newcommand{\fmap}{<\$>\xspace}
+\newcommand{\constfmapl}{<\$\xspace}
+\newcommand{\constfmapr}{\$>\xspace}
+\newcommand{\pamf}{<\&>\xspace}
+
+\newcommand{\tsext}{TypeScript$^*$\xspace}
+
+\newcounter{equi}
+\setcounter{equi}{1}
+\newcommand{\equi}[1][]{%
+    \ifthenelse
+        {\equal{#1}{}}%
+        {%
+            \text{({\sc\roman{equi}})}%
+            \stepcounter{equi}%
+        }%
+        {\text{({\sc\romannumeral#1})}}%
+}
+% usage: \equi to get and increment, \equi[x] to reference equivalence x
+
+\begin{document}
+\counterwithin{listing}{chapter}
+\input{title/title.tex}
+
+\newcounter{abstractpage}
+\setcounter{abstractpage}{\value{page}}
+
+\begin{abstract}
+    \thispagestyle{plain}
+    \setcounter{page}{\value{abstractpage}}
+
+    Parser combinators often embody the principles of software engineering best practices, from abstraction to simplicity.
+    They provide an effective solution to the problem of parsing, offering numerous benefits such as the ability for the user to define functionality in the host language, to creating parsers that closely resemble the original grammar.
+    However, there can be a high barrier to entry: not only can the idea of functional programming seem daunting to some, but pitfalls such as left-recursion can often serve to complicate an otherwise intuitive experience.
+    Many existing solutions for left-recursion remain highly theoretical or incomplete, thus preventing real usage.
+
+    This project remediates some of these hurdles by creating a lightweight parser combinator library in TypeScript as well as a preprocessing pipeline to support additions, such as custom operators, to TypeScript.
+    Furthermore, the preprocessor can also perform static analysis over the structure of the program, providing an opportunity to optimise parsers.
+    A key contribution of this project lies in this analysis: pitfalls such as left-recursion can be detected and automatically corrected, while maintaining the desired semantics, via a series of transformation and reduction steps.
+
+    \setcounter{abstractpage}{\value{page}}
+\end{abstract}
+
+\setcounter{page}{\value{abstractpage}}
+\stepcounter{page}
+\setcounter{abstractpage}{\value{page}}
+
+\renewcommand{\abstractname}{Acknowledgements}
+\begin{abstract}
+    \thispagestyle{plain}
+    \setcounter{page}{\value{abstractpage}}
+
+    First and foremost, I need to extend an immense deal of gratitude to Jamie.
+    Not only would this project have been impossible without his support and guidance, I would not have even been introduced to the idea of parser combinators in the first place.
+    I would also like to extend my gratitude to those who took the time to proofread this entire report on \emph{extremely} short notice.
+
+    Next, I would like to thank the friends I have made at university; the past four years would not have been the same without you all.
+    And for my friends from before university; I cannot thank you all enough for your patience with me.
+    Finally: I want to thank my family, especially my parents, for all the support they have given me.
+
+    \setcounter{abstractpage}{\value{page}}
+\end{abstract}
+
+\setcounter{page}{\value{abstractpage}}
+\stepcounter{page}
+
+\tableofcontents
+
+\input{introduction/introduction.tex}
+\input{background/_background.tex}
+\input{parsing_library/_parsing_library.tex}
+\input{preprocessor/_preprocessor.tex}
+\input{oaa/_oaa.tex}
+\input{soundness/_soundness.tex}
+\input{evaluation/_evaluation.tex}
+\input{conclusion/_conclusion.tex}
+
+\bibliographystyle{unsrtnat}
+\bibliography{bibs/refs}
+
+\input{appendix/appendix.tex}
+
+\end{document}

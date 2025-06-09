@@ -1,0 +1,18 @@
+\section{Contributions}
+\label{sec:contributions}
+
+This project achieves all of the aims set out in \autoref{chap:intro}, and more.
+The first contribution of the project is a lightweight parser combinator library built entirely in TypeScript (\textit{Teaspoon}) with no external dependencies.
+It adheres closely to the semantics of the \textit{Parsec} family of parsers.
+The library itself performs as well as, or better than, existing parser combinator libraries as demonstrated in \autoref{sec:ts_compare}.
+
+While the library itself can function alone, it is best coupled with the preprocessor where the bulk of the contributions lie.
+The preprocessor alone provides a highly extensible pipeline for performing analysis over the structure of an arbitrary TypeScript program.
+It also contributes numerous language features which can be used outside of writing parser combinators, such as the ability for the user to define infix operations, Rust-like macros, and lazy evaluation.
+
+The primary contributions lie in the optimisation and analysis performed in the pipeline: namely, the ability to analyse left-recursive productions, as well as an optimisation to reduce unnecessary backtracking.
+This project provides an algorithm and a set of equivalences to automate the mechanical process of normalising and reducing common left-recursive productions into a form that can be trivially rewritten into a homogenous chain, thus removing left recursion, as described throughout \autoref{sec:lrec_analysis}.
+The soundness of this method (alongside the equivalences) is verified and proven in \autoref{chap:soundness}.
+Furthermore, a definition of first sets and left-recursion is described on parser combinators, building on the existing intuition for grammars.
+An algorithm for recursively fusing disjunctions utilising Merkle trees is also provided, thus reducing the amount of backtracking that needs to be performed and improving the performance of the generated parser.
+Evidence of the efficacy of these optimisations is shown in \autoref{sec:ev_oaa}.

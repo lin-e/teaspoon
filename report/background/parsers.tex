@@ -1,0 +1,49 @@
+\section{Parsers}
+\label{sec:parsers}
+
+A parser forms the first stage of the compilation pipeline.
+Intuitively, parsing (also referred to as syntactic analysis) is the process of obtaining meaning from an input, typically a string, and deriving meaning in some form of structure, based on some grammar.
+For example, consider a simple expression: within these operators there are a series of precedence rules that should be adhered to, rules that are intuitively known.
+However, this needs to be formally specified to a parser in order to generate the parse tree in \autoref{fig:tree}; the original input string has no real meaning without a structure.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+    \node[anchor=east] at (0, 0) {\texttt{-1+2*(3-4)}};
+    \node at (1.4, 0) {$\leadsto$};
+    \begin{scope}[shift={(4, 1.5)}]
+        \node (o) at (0, 0) {\texttt{+}};
+        \node (ol) at (-1, -1) {\texttt{-}};
+        \node (or) at (1, -1) {\texttt{*}};
+        \node (olc) at (-1, -2) {\texttt{1}};
+        \node (orl) at (0.5, -2) {\texttt{2}};
+        \node (orr) at (1.5, -2) {\texttt{-}};
+        \node (orrl) at (1, -3) {\texttt{3}};
+        \node (orrr) at (2, -3) {\texttt{4}};
+
+        \draw
+        (o) -- (ol)
+        (o) -- (or)
+        (ol) -- (olc)
+        (or) -- (orl)
+        (or) -- (orr)
+        (orr) -- (orrl)
+        (orr) -- (orrr);
+    \end{scope}
+\end{tikzpicture}
+\caption{An example parse tree for a simple expression}
+\label{fig:tree}
+\end{figure}
+
+It is important to first differentiate between the types of parsers.
+In general, parsers can be split into two categories; top-down (including $\text{LL}(k)$ parsers, recursive descent) and bottom-up (including $\text{LR}(k)$ parsers, shift-reduce).
+The former builds the AST from the root nodes to the leaf nodes, whereas the latter builds from the leaf nodes to the root nodes (hence bottom-up).
+
+Top-down parsing begins with a non-terminal, and once a token is identified, it is used to `fill' in the tree, creating a root node and child nodes based on the expected structure of the root node from the first identified token.
+At this point, any non-terminals that are in the tree are produced in the same way, building from the root node downwards.
+Due to the recursive nature of this style of parsing, it is evident that recursively applying a rule can be problematic if care is not taken, as discussed in \autoref{ssec:lrec}.
+
+On the other hand, bottom-up parsing tries to use all the rules (whereas top-down tries to match a non-terminal by trying each of the rules), and replaces it with a non-terminal, by using the production in reverse.
+Bottom-up parsing succeeds when the whole input is replaced by the start symbol.
+
+Both $\text{LL}(k)$ and $\text{LR}(k)$ parsers perform left-to-right scanning and have $k$ tokens of look-ahead \cite{dragon}, but differs in the former having left-most derivation whereas the latter has right-most derivation.
+Note that $\text{LL}(n) \subseteq \text{LR}(n)$, hence $\text{LR}$ parsers are more powerful.

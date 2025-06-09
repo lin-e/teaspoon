@@ -1,0 +1,146 @@
+\section{Related Works}
+\label{sec:related}
+
+\subsection{ANTLR4}
+\label{ssec:antlr4all}
+
+One change between \textit{ANTLR3} and \textit{ANTLR4} was the type of parser used.
+Previously, an $\text{LL}(*)$ parser was used in \textit{ANTLR3} and therefore suffered the same limitation with left-recursive rules.
+\textit{ANTLRWorks} \cite{aworks}, a development environment for \textit{ANTLR3} grammars, supports direct left-recursion removal \cite{awlrr}.
+However, this only existed as a tool outside of the parser generator and therefore restricted the editing environment, which may not be ideal for all users.
+Additionally, this approach only supported rewriting direct left-recursion, where the parser is defined with itself as the first parser in a sequence.
+For example, the grammar $A \rightarrow A \alpha$ (as mentioned previously) would be rewritten, but an indirect left-recursion would not be.
+
+Included with \textit{ANTLR4}'s $\text{ALL}(*)$ (adaptive $\text{LL}(*)$) parsing, the preprocessor rewrites the grammar for \textbf{direct} left-recursion, before the parser generation stage begins \cite{parr14}.
+However, the rewriting is not performed for indirect or hidden left-recursion cases; the generated trees would be far larger, and these cases are not commonly found in real grammars.
+
+Part of the justification for this is a larger grammar (after the transformation) as well as a more complex parse tree.
+However, the latter may not be as much of a concern in the case of combinator parsing, as it could be possible to automatically transform and combine the parse tree.
+On the other hand, the former may be taken as an argument against rewriting the grammar to some extent; one of the benefits of using combinator parsing is the inherent readability which may be lost if too much processing is performed.
+
+The idea of grammar refactoring is used heavily throughout \autoref{sec:lrec_analysis}.
+However, parser generators do not carry the user-defined semantics directly in the grammar (this is provided externally, over the parse tree), whereas parser combinators do.
+As such, additional work is required on top of a grammar rewrite to ensure semantics are retained.
+
+\subsection{Counting Left Recursion}
+\label{ssec:lrcounts}
+
+Frost \& Hafiz (2006) \cite{frost06} explore the use of memoisation to reduce the complexity of LL parsing from exponential to polynomial, following the work of Norvig (1991) \cite{norvig91}.
+However, this paper also noted that it would be possible to support left-recursive grammars by counting the number of applications of a parser to a given index during the memoisation process.
+The paper notes that this count is either zero or one for productions that have no left-recursion.
+On the other hand, the maximum number of applications of a parser to an index is one more than the size of the remaining input - at which point the parse will fail.
+It is important to note that the na\"ive approach of counting the number of parsers applied to an index is insufficient since some parsers may directly refer to another parser without additional requirements.
+
+The work is continued in Frost et al. (2008) \cite{frost08}, where the aforementioned method of counting left-recursion is used to accommodate direct left-recursion (detailed in \autoref{ssec:lrec}).
+The ability to handle indirect left-recursion is extended in this paper by adding additional data when propagating results back up the memoisation, including the context of the left-recursion.
+This would prevent an empty (note, failed) result from being stored for a parser that is able to continue a parse at a given index in a different context.
+Instead, the context of the left-recursion is compared when checking the memoisation table (when the parsing is stopped by exceeding an application count).
+
+As the second approach by Frost builds on the first, the discussion will only revolve around the latter.
+This solution has a number of advantages, namely the lack of a preprocessing step.
+By avoiding a preprocessing step, with everything being in the host language, changes are easier to make, and the code is likely to be more intuitive to read.
+Additionally, the grammar is not altered or modified in any way, which also aids in readability.
+However, this approach requires additional bookkeeping and causes a state to be maintained for the parsers, which can introduce additional costs in terms of space, especially with storing the left-recursion context.
+Additionally, this method will still continue to execute the parsers, which may be computationally expensive in the case of a large parse input.
+
+Note that with this project, a preprocessor is necessary to introduce user-defined operators in TypeScript regardless.
+As such, this method was not as suitable since it would not be able to leverage the global view that the preprocessor has.
+Additionally, it adds significant complexity to the parsers themselves, which could prevent some users from implementing the parsers they may require.
+
+\subsection{Generalising Monads to Arrows}
+\label{ssec:arrows}
+
+Swierstra \& Duponcheel (1996) \cite{swierstra96} introduce the idea of having two components in a parser; a fast static component which recognises whether the parser can succeed alongside a slower dynamic component which performs the actual parse.
+The static parser contains both the list of symbols (typically \texttt{Char}s), which can begin the derivation, as well as whether the parser can accept $\varepsilon$.
+The use of a static and dynamic component, however, does not fit into \texttt{Monad} interface.
+
+An \texttt{Arrow}, described by Hughes (2000) \cite{hughes00}, allows for both static effects (much like \texttt{Applicative}s) as well as dynamic effects (similar to \texttt{Monad}s) in the same context \cite{hsarrows}.
+As such, they allow for more granular control as to how effects can be combined.
+For example, \texttt{first} takes in a function and a pair of inputs but only applies a function to the first, and vice versa for \texttt{second}.
+This allows for a chain of composed arrows to keep effects separate as well as perform multiple computations in the same step.
+For Swierstra \& Duponcheel's parsers, \texttt{Arrow}s allow for both the static and dynamic components of two parsers to be manipulated or combined as required.
+The resultant parser can then still be executed in the same manner.
+
+Similar to the approach detailed in \autoref{ssec:lrcounts}, this requires additional bookkeeping and does not utilise the global scope provided by the preprocessor.
+The additional bookkeeping heavily complicates the interface and may prevent users from adapting the combinators for their own use, however, the idea of maintaining a static component may prove interesting for future performance optimisations on the library.
+
+\subsection{Self Inspecting Code}
+\label{ssec:sic}
+
+Baars \& Swierstra (2004) \cite{baars04} present a deep embedding for grammars.
+The deep embedding preserves the structure, thus allowing for analysis over the structure of the grammar.
+This technique is also present in both \textit{Parsley} (Scala) \cite{willis18} and \textit{Parsley} (Haskell) \cite{willis20}, where inspection is performed over the grammar.
+Parsers are initially stored in an environment where parsers are represented as grammar productions.
+Once a compilation step is done on the environment, the environment is converted into one containing parsers.
+However, since the environment provides a global view of productions, left recursion can be removed.
+
+The approach taken by Baars \& Swierstra is similar to the one described in \autoref{sec:lrec_analysis} where a partition is made on a rule's disjunctions.
+Similarly, the originally (infinitely) recursive production is rewritten into an iterative approach (albeit using a left fold rather than \texttt{postfix}).
+However, this approach only applies to a limited number of combinators, whereas the previously described implementation supports a wider range of commonly used combinators and `shapes' due to the normalisation and reduction steps.
+
+\subsection{Existing TypeScript Libraries}
+\label{ssec:tslib}
+
+\textit{ts-parsec} is an open source library, maintained by \textit{Microsoft} for performing combinator parsing in TypeScript \cite{tsparsec}.
+The library provides the ability to tokenise based on regular expressions, combinators, and support for recursive syntax, either with laziness or with \texttt{chain}s.
+However, it lacks the ability to perform context-sensitive application or context-sensitive tokenisation.
+In its documentation, conflicting token definitions are resolved by first taking the longest token, and any further conflicts are resolved by the order they are passed into the lexer.
+However, this lexing stage greedily generates tokens and loses information regarding the context of the token.
+Ambiguities will then have to be resolved by the parser \cite{willis21}.
+However, it is possible for a manual tokeniser to be implemented to support this.
+Unlike \textit{ts-parsec}, \textit{Teaspoon} does not require such a tokeniser.
+
+Another similar library is \textit{parsimmon}, which is written for JavaScript \cite{parsimmon}.
+This follows the functional nature of combinator parsing closer than \textit{ts-parsec} with compatibility with \textit{fantasy-land}\footnote{\url{https://github.com/fantasyland/fantasy-land}}, an unofficial specification for algebraic JavaScript.
+
+Neither of these libraries directly support left-recursive grammars (as no analysis is performed at runtime), and neither have classical operators.
+The former uses function calls that take in parameters, whereas the latter involves parsers that provide methods to combine with other parsers.
+While the implementation for the parsing library is primarily derived from \textit{Parsec} (see \autoref{ssec:parsec}), the use of standard regular expressions as parsers is quite interesting and is something that is implemented as an additional `primitive'.
+
+Comparisons between \textit{Teaspoon} and the aforementioned libraries are explored in further detail in \autoref{sec:ts_compare}.
+
+\subsection{Parsec}
+\label{ssec:parsec}
+
+Throughout the implementation, the work of Leijen \& Meijer (2001) \cite{leijen01} is used heavily.
+\textit{Parsec} aims to be a combinator library for use in the real world.
+It does so by efficiently generating error messages, including the position and possible productions that may have been expected at the illegal position (the first set).
+Note that intuitively, the first set for a rule is anything that can begin the derivation for that particular rule.
+This set can be recursively constructed; the first set of a terminal is itself, and if the production's rule starts with a non-terminal, the first set of the first production includes the first set of the left-most rule in the production.
+
+\textit{Parsec} has arbitrary lookahead, with support for backtracking via the use of \texttt{try}.
+This is done by using a consumer-based approach, where the result of the parser is either \texttt{Consumed} or \texttt{Empty}, depending on whether input has been consumed or not, respectively.
+Within the response, the result is also captured as \texttt{Ok} or \texttt{Error}, which captures whether the parse was successful or not.
+
+Note that the use of \texttt{try} allows the parser to become effectively $\text{LL}(\infty)$ with full backtracking.
+This occurs when every parser is wrapped with \texttt{try}.
+However, this can come at the penalty of an exponential worst-case complexity.
+Even if the grammar is not ambiguous, backtracking may still be required to look further into the future.
+
+\subsection{Parsley}
+\label{ssec:parsley}
+
+\textit{Parsley} for Scala \cite{willis18} builds on a previous port of \textit{Parsec} and improves on the latter's performance pitfalls.
+The latter's pitfalls can largely be attributed to inherent differences between Haskell and the JVM.
+The performance is achieved with the use of a stack machine, which fully supports applicative parsers.
+Note that \texttt{bind} has issues with performance and optimisation as the parser is unknown until the result of the first parser has been computed.
+
+While the aim of this project was not to reach the best performance in TypeScript, these design considerations may be interesting to consider for future performance improvements.
+Furthermore, the idea of lawful optimisation on parsers is also utilised, albeit in the preprocessing pipeline (described in \autoref{ssec:parser_law}).
+\textit{Parsley} itself is also utilised as the parser for the preprocessor, as mentioned in \autoref{sec:ts_parser}.
+
+\subsection{Khepri}
+\label{ssec:khepri}
+
+One of the key features that this project aims to implement is the ability to use combinators in a natural way, as operators in a DSL, rather than nested function calls or method calls.
+However, TypeScript does not support natively support this.
+A modified version of ECMAScript, \textit{Khepri} \cite{khepriwiki}, supports this in a similar way to how this project implements user-defined operators.
+In general, \textit{Khepri} aimed to be more concise than ECMAScript and have better support for functional programming.
+However, the project has since been abandoned, with the domain expiring and lacking updates as of 2015.
+
+The author of the project has detailed the preprocessor in a 2014 blog post \cite{khepriudo}.
+However, it also supports arbitrary (within limits) operators - this is something that is not needed in this project as it intends to specifically parse for combinators in order to build up a `combinator tree', which can later be optimised over and modified.
+Additionally, adding operators dynamically can cause difficulties as expressions may need to be parsed differently depending on the local context of the operator.
+With static (fixed) operators, the rules are written into the grammar as if they were any other operator, similar to mathematical operators.
+Furthermore, the parsing is done in JavaScript, whereas the preprocessor for this project is implemented in Scala in order to leverage the pattern matching abilities that come from it for the optimisation stage, as detailed in \autoref{sec:ts_parser}.
+However, the idea of arbitrary operators is interesting and is implemented as a minor feature where a user-defined function can be wrapped in angle brackets to be processed as an infix operator, as detailed in \autoref{sec:lang_ext}.

@@ -1,0 +1,100 @@
+\chapter{Introduction}
+\label{chap:intro}
+
+With the exception of hand-crafted parsers, most parsers can be placed into one of two categories; parser combinators, such as \textit{Parsley} \cite{willis18} and \textit{megaparsec} \cite{megaparsec}, and parser generators, including \textit{Yacc} \cite{johnson75} and \textit{ANTLR} \cite{parr14}.
+One major difference lies in how the user specifies the language; the former (parser \textbf{generators}) requires a preprocessing step over a DSL (domain-specific language) representing the grammar in a form resembling EBNF (extended Backus-Naur form).
+This generates source code in the host language, which can then be used to parse input.
+
+On the other hand, parser \textbf{combinators} are implemented directly in the host language and do not require a preprocessing stage.
+Simple functions, which are individual parsers, take in an input and either give a successful (which would contain the parsed tree) or a failed response.
+These can be combined in a number of ways to produce more complex parsers of arbitrary types.
+
+As expected, both approaches come with their respective benefits and drawbacks.
+A major disadvantage of parser generators is the generated parse tree; this is typically in a form specified by the creators of the library and may be tedious to traverse in order to convert into a desired structure, whereas a parser combinator can directly generate the desired tree in the host language.
+An advantage of parser generators is the ability to specify precedence rules, whereas this may have to be done by nesting the grammar with some parser combinator libraries.
+However, libraries often provide this functionality on top of the base combinators.
+
+Another major advantage for parser combinators is the ability to abstract common patterns in the host language.
+For example, the aforementioned precedence rules could trivially be implemented by the user when using parser combinators.
+This advantage can be seen in \autoref{fig:gen_vs_comb}.
+In this example, a common pattern of a comma separated list is abstracted out by a user-defined function \texttt{commaSep}.
+Not only is the representation simpler, it also provides the desired structure of a list of elements (rather than two parse trees that have the same shape) and has less repetition.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.33\textwidth}
+        \begin{minted}{antlr}
+            arr : '[' es ']' ;
+            es  : e | e ',' es ;
+            obj : '{' ps '}' ;
+            ps  : p | p ',' ps ;
+        \end{minted}
+    \end{minipage}
+    \hfill
+    $\leadsto$
+    \hfill
+    \begin{minipage}{0.56\textwidth}
+        \begin{minted}{scala}
+            def commaSep[A](p: P[A]): P[List[A]]
+              = p <::> many(',' *> p)
+            val arr = '[' *> commaSep(e) <* ']'
+            val obj = '{' *> commaSep(p) <* '}'
+        \end{minted}
+    \end{minipage}
+    \caption{Left: example grammar (\textit{ANTLR4}) for defining array and object literals, right: representation of the same grammar with parser combinators (\textit{Parsley})}
+    \label{fig:gen_vs_comb}
+\end{figure}
+
+With parser combinators, or more generally recursive descent parsers, a key limitation is the inability to handle left-recursive grammars.
+A fairly mechanical technique to overcome this is to simply eliminate the left-recursive production (in general, a non-terminal production $A \to A\alpha\ |\ \beta$ can be written as $A \to \beta R$ and $R \to \alpha R\ |\ \epsilon$ \cite{dragon}).
+This can be seen in \autoref{fig:orig_vs_rewrite}.
+While this can be quite easily performed with a simple grammar, it already begins to look less intuitive than the original production, and one could imagine the complexity that would arise from more complex grammars.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.375\textwidth}
+        \begin{lstlisting}[numbers=none, xleftmargin=0pt]
+            expr ::= expr '+' nat | nat
+        \end{lstlisting}
+    \end{minipage}
+    \hfill
+    $\leadsto$
+    \hfill
+    \begin{minipage}{0.375\textwidth}
+        \begin{lstlisting}[numbers=none, xleftmargin=0pt]
+            expr  ::= nat exprR
+            exprR ::= '+' nat exprR | $\epsilon$
+        \end{lstlisting}
+    \end{minipage}
+    \caption{Left: original grammar for adding numbers, right: rewritten grammar (without left recursion)}
+    \label{fig:orig_vs_rewrite}
+\end{figure}
+
+The aim of this project is to lower the barrier to entry for using parser combinators.
+The first of which is the host language - the vast majority of existing libraries are built in functional languages for obvious reasons, including the functional nature of this style of parsing.
+However, this adds an additional burden on the user in that they may have to learn an entirely new paradigm.
+As such, this project introduces a parser combinator library built entirely in TypeScript: \textit{Teaspoon}\footnote{A fitting name for files with an extension of \texttt{.tsp}}.
+Another barrier to entry is the small nuances that exist \cite{willis21}, such as the previously stated limitations with left-recursive productions.
+
+This project contributes a preprocessor over TypeScript that not only allows for the use of combinators as operators, rather than functions, but also perform analysis over the combinators in order to aid the user and remediate detected anti-patterns.
+The use of a preprocessor also allows for the definition of operators beyond what the language natively provides, thus permitting syntax which can be more intuitively read (compared to numerous nested function calls) such as:
+
+\begin{minted}{teaspoon_lex.py:TeaspoonLexer -x}
+    let u = chr('_');                      // underscore
+    let l = re(/[A-Za-z]/);                // letter
+    let d = re(/[0-9]/);                   // digit
+    let c = (xs: string[]) => xs.join(""); // concatenate
+
+    let id_op = c <$> ((u <|> l) <:> many(u <|> l <|> d));
+    let id_fn =
+      fmap(c, liftCons(choice(u, l), many(choice(choice(u, l), d))));
+\end{minted}
+
+\paragraph*{Outline}
+This report begins by exploring parser combinators (and parsers in general) in detail, alongside the common pitfalls that may arise from their use in \autoref{chap:background}.
+With this intuition on how parsing can be performed by building up smaller parsers, \autoref{chap:library} highlights the design decisions and underlying implementation of the TypeScript-based parser combinator library.
+While the library is functional on its own, a preprocessor is required to support custom operators.
+This is explored in \autoref{chap:preprocessor}, which details the architecture of the preprocessor, the design decisions made, as well as the extensions made to TypeScript.
+The optimisations found in the preprocessor are analysed in greater detail in \autoref{chap:oaa}, with \autoref{chap:soundness} verifying the soundness of the transformations performed.
+The efficacy of these optimisations are then evaluated in \autoref{chap:evaluation} alongside the performance of the library in different scenarios.
+Finally, \autoref{chap:conclusion} details the contributions made, as well as how this work can be explored further.

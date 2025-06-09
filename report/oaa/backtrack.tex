@@ -1,0 +1,274 @@
+\section{Backtracking Reduction}
+\label{sec:backtrack_reduction}
+
+As mentioned in \autoref{sec:str_trie}, there is a significant performance penalty incurred by backtracking.
+However, the technique used for strings does not generalise well to arbitrary sequences of combinators due to the lack of right-associativity.
+This section explores alternative techniques and methods to extract `common' terms in an attempt to reduce backtracking\footnote{No pun intended}.
+
+\subsection{Flat IR and Na\"ive Fusion}
+\label{ssec:flat_ir}
+While the current tree-based IR allows for effective analysis on the localised \textbf{structure} of the parse, it can often become cumbersome when reasoning about the \textbf{sequence} of the parse; the order in which parsers are applied (and more importantly, consume input).
+This becomes particularly tedious when inspection needs to be done on the whole parser tree, when the leftmost and rightmost leaves need to be inspected.
+Due to this limitation, inspection in this stage is done primarily using the \texttt{FlatParser} type, which is a sequence of \texttt{FlatIR}s.
+Note that \texttt{FlatIR} is a trait which contains two notable concrete implementations; \texttt{P} and \texttt{C} - the former wraps an \texttt{IR} and the latter represents a \texttt{Combinator}.
+The conversion is done respecting left-associativity; therefore traversal is only performed on the left-hand side of a combinator, as seen in \autoref{fig:flat_ir}.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[every node/.style={execute at end node=\vphantom{bg}}]
+        \begin{scope}[shift={(0, 0)}]
+            \node (o) at (0, 0) {\texttt{\ap}};
+            \node (ol) at (-1, -1) {\texttt{\ap}};
+            \node (or) at (1, -1) {\texttt{\mult}};
+            \node (oll) at (-1.5, -2) {\texttt{p}};
+            \node (olr) at (-0.5, -2) {\texttt{q}};
+            \node (orl) at (0.5, -2) {\texttt{r}};
+            \node (orr) at (1.5, -2) {\texttt{s}};
+            \draw
+            (o) -- (ol)
+            (o) -- (or)
+            (ol) -- (oll)
+            (ol) -- (olr)
+            (or) -- (orl)
+            (or) -- (orr);
+        \end{scope}
+        \node[anchor=west] at (2, -1) {$\leadsto$};
+        \begin{scope}[shift={(3, -1)}]
+            \node[anchor=west] at (0, 0) {\texttt{[P(p), C(\ap), P(q), C(\ap), P(r \mult s)]}};
+        \end{scope}
+    \end{tikzpicture}
+    \caption{
+        Left: tree-based (original) IR, right: list-based (flat) IR.
+        Both represent the parser \texttt{p \ap q \ap (r \mult s)}.
+    }
+    \label{fig:flat_ir}
+\end{figure}
+
+Since left-associativity is respected when converting from the combinator tree to the flat representation, recovery can be done without any concerns of changing associativity.
+However, this approach limits the amount of inspection that can be performed, especially when considering common terms.
+For example, in \autoref{fig:flat_ir}, inspection cannot be done within \texttt{\mult}, as it is considered a single parser.
+
+Certain combinators, namely the label operation (\texttt{<?>}) and choice (\texttt{\choice}) are not flattened.
+Any other nodes in the IR, including functions, are kept as `singleton' parsers.
+
+This representation allows for a na\"ive implementation of factoring.
+Two disjunctions can be `fused' when everything, other than the last element in the list, is equal between both parsers.
+This element can then be combined by utilising the distributive property of alternatives on applicatives.
+Note that this form of fusion is omitted from the pipeline, as another technique discussed later is generally more effective.
+
+Also note that the left-distributive property\footnote{\texttt{a <*> (b <|> c) = (a <*> b) <|> (a <*> c)}} is only applicable for backtracking parsers and parsers with non-biased choice (the \textit{Parsec} family is left-biased).
+However, as all disjunctions require backtracking in order to benefit from this optimisation, it can be assumed to hold within this optimisation.
+The right-distributive\footnote{\texttt{(a <|> b) <*> c = (a <*> c) <|> (b <*> c)}} property does not hold for parsers \cite{typeclassopedia}, as demonstrated in \autoref{lst:no_right_fact} with an input of \texttt{'+++'}.
+In this scenario, \texttt{c} will only be able to succeed if \texttt{b} succeeds (if \texttt{a} succeeds, there will be insufficient \texttt{'+'}s for \texttt{c}) - this case is possible in \texttt{p}, as the first disjunction will fail.
+However, if \texttt{q} was to be used, the first conjunction would succeed with \texttt{a} succeeding, however \texttt{c} will then fail, causing the entire parser to fail.
+Furthermore, factoring on the right does not offer a performance benefit - the same amount of backtracking would still be performed, however code size may be reduced.
+
+\begin{capminted}
+    \begin{minted}{teaspoon_lex.py:TeaspoonLexer -x}
+        let a = str('++');
+        let b = str('+');
+        let c = str('++');
+        let p = attempt(a *> c) <|> attempt(b *> c);
+        let q = (attempt(a) <|> attempt(b)) *> c;
+    \end{minted}
+    \vspace{-0.5\baselineskip}
+    \caption{Example showing failure of right factoring, \texttt{p} is the original parser and \texttt{q} is the attempted optimisation}
+    \label{lst:no_right_fact}
+\end{capminted}
+
+\subsection{Left-Associative Normalisation}
+The crux of this technique is to `fuse' similar structures with alternative parsers.
+In order to maximise the efficacy of this technique, a normal form should be established as it permits parser structures that are semantically equivalent that otherwise wouldn't match based on structure to be fused.
+
+Similar to before, cases for \texttt{\multl} and \texttt{\multr} are interchangeable with \texttt{\apl} and \texttt{\apr}, respectively.
+The following associativity and reassociation equivalences are applied in order to obtain a normal form:
+\begin{align*}
+    \texttt{p \apl (q \apl r)} & \Rightarrow \texttt{p \apl q \apl r} \\
+    \texttt{p \apr (q \apr r)} & \Rightarrow \texttt{p \apr q \apr r} \\
+    \texttt{p \apr (q \ap r)} & \Rightarrow \texttt{p \apr q \ap r} \\
+    \texttt{p \ap (q \apl r)} & \Rightarrow \texttt{p \ap q \apl r}
+\end{align*}
+
+While this alone does not guarantee everything is converted into a normal form, it increases the amount of left-associated operators.
+% By performing this step, the length of the flattened IR becomes significantly larger, which allows for more optimisation opportunities.
+% Additionally, further steps that traverse the structure of the combinator tree are able to progress further without requiring additional logic for matching equivalent structures.
+By performing this step, further steps that traverse the structure of the combinator tree are able to progress further without requiring additional logic for matching equivalent structures.
+
+\subsection{Fusion with Merkle Trees}
+As mentioned earlier, a key limitation of the flattened structure is the inability to analyse the right subtree of a combinator, when it is not atomic (when the parser within \texttt{P} is actually a combinator).
+An example of this can be seen in \autoref{fig:merkle_fusion_example}; which would otherwise be fused to \texttt{(r \mult s)/(t \mult s)}.
+Another key limitation is that fusion on the flattened IR requires both to have the same number of elements.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[every node/.style={execute at end node=\vphantom{bg}}]
+        \begin{scope}[shift={(-0.5, 0)}]
+            \node (o) at (0, 0) {\texttt{\ap}};
+            \node (ol) at (-1, -1) {\texttt{\ap}};
+            \node (or) at (1, -1) {\texttt{\mult}};
+            \node (oll) at (-1.5, -2) {\texttt{p}};
+            \node (olr) at (-0.5, -2) {\texttt{q}};
+            \node (orl) at (0.5, -2) {\texttt{r}};
+            \node[red] (orr) at (1.5, -2) {\texttt{s}};
+            \draw
+            (o) -- (ol)
+            (o) -- (or)
+            (ol) -- (oll)
+            (ol) -- (olr)
+            (or) -- (orl)
+            (or) -- (orr);
+        \end{scope}
+        \node at (2, -1) {\texttt{\choice}};
+        \begin{scope}[shift={(4.5, 0)}]
+            \node (o) at (0, 0) {\texttt{\ap}};
+            \node (ol) at (-1, -1) {\texttt{\ap}};
+            \node (or) at (1, -1) {\texttt{\mult}};
+            \node (oll) at (-1.5, -2) {\texttt{p}};
+            \node (olr) at (-0.5, -2) {\texttt{q}};
+            \node (orl) at (0.5, -2) {\texttt{r}};
+            \node[red] (orr) at (1.5, -2) {\texttt{t}};
+            \draw
+            (o) -- (ol)
+            (o) -- (or)
+            (ol) -- (oll)
+            (ol) -- (olr)
+            (or) -- (orl)
+            (or) -- (orr);
+        \end{scope}
+        \node at (7, -1) {$\leadsto$};
+        \begin{scope}[shift={(9.5, 0)}]
+            \node (o) at (0, 0) {\texttt{\ap}};
+            \node (ol) at (-1, -1) {\texttt{\ap}};
+            \node (or) at (1, -1) {\texttt{\mult}};
+            \node (oll) at (-1.5, -2) {\texttt{p}};
+            \node (olr) at (-0.5, -2) {\texttt{q}};
+            \node (orl) at (0.5, -2) {\texttt{r}};
+            \node[red] (orr) at (1.5, -2) {\texttt{s/t}};
+            \draw
+            (o) -- (ol)
+            (o) -- (or)
+            (ol) -- (oll)
+            (ol) -- (olr)
+            (or) -- (orl)
+            (or) -- (orr);
+        \end{scope}
+    \end{tikzpicture}
+    \caption{
+        Left: two parser trees before fusion, right: resulting parser tree after fusion.
+        Nodes in \red{\texttt{red}} are fused.
+    }
+    \label{fig:merkle_fusion_example}
+\end{figure}
+
+However, the problem of efficiently detecting small differences between two trees and performing some aggregation or synchronisation mirrors that of large-scale data management systems such as \textit{DynamoDB}, as described by DeCandia et al. (2007) \cite{decandia07}.
+One of the data structures used for `anti-entropy' is a Merkle tree \cite{merkle87}.
+
+Each node contains a hash which consists of the hashes of its children - for the combinator tree, this also needs to account for the operator itself.
+Another modification for traversal on combinator trees is that the termination condition is not only on the leaf but rather when a mismatch is detected that prevents further traversal.
+
+The algorithm consists of two components; `matching', where two trees are checked for compatibility and the wrapper, which performs the fusion across disjunctions.
+The following describes the matching step.
+Assuming that the nodes represent the same combinator and are not equal, the general rule is to first determine whether the right side of the combinator can be fused.
+If the left side is equal, it is traversed further until it finds the first `difference' (the combinators are not equal or only one of the two arguments are combinators), at which point a fusion occurs.
+For example, if a parser is factorable on the left and the left sides are equal, then the fusion function is called with the two right-hand sides.
+Note that if this is the first call of the function, no fusion is performed.
+These rules are detailed further in \autoref{alg:merkle_match}.
+
+\begin{algorithm}[H]
+    \begin{algorithmic}[1]
+        \Require $\text{\sc Type}(a) = \text{\sc Type}(b)$
+        \Function{Match}{$a, b, f$} \Comment{$a$ originates from the candidate set}
+            \State \textbf{if} $a = b$ \textbf{return} $\text{\sc Some}(a)$
+            \State $\text{\sc sc} \gets \text{\sc SameCombinator}(a, b)$ \Comment{also checks if both are combinators}
+            \State \textbf{if} {\sc sc} and {\sc lf} and $a.l = b.l$ \textbf{return} $\text{\sc Match}(a.r, b.r, \bot)$ \textbf{map} $\lambda r \to \text{\sc Op}(a.l, r)$
+            \State \textbf{if} $\text{\sc ToFuse}(irs) \gets a$ \textbf{return} $\text{\sc Some}(\text{\sc ToFuse}(b :: irs))$
+            \State \textbf{if} $f$ \textbf{return} $\text{\sc None}$
+            \State \textbf{return} $\text{\sc Some}(\text{\sc ToFuse}([a, b]))$
+        \EndFunction
+    \end{algorithmic}
+    \caption{Matching over Merkle trees, {\sc lf} denotes left-factorable}
+    \label{alg:merkle_match}
+\end{algorithm}
+
+The fusion stage wraps the matching stage.
+Initially, the set of candidates is initialised to the empty set.
+For each disjunction, a match is attempted across each of the candidate trees, with the first match being taken (if any).
+If a match is successful, the original tree (from the candidate set) is replaced with the new tree (containing the fusion with the disjunction).
+Otherwise, the disjunction is added directly to the candidate set.
+The purpose of the candidate set is to maintain existing matches as an accumulator, preventing redundant computation and additional parsers from being created.
+In practice, this fusion is recursive (the newly combined parser is further optimised) - however, this is done at the end.
+These steps are detailed in \autoref{alg:merkle_fuse}.
+
+\begin{algorithm}[H]
+    \begin{algorithmic}[1]
+        \Require $\exists T\ [\forall ir \in irs\ [\text{\sc Type}(ir) = T]]$ \Comment{all have same type}
+        \Function{FuseTrees}{$irs$} \Comment{primary function}
+            \State $candidates \gets \varnothing$
+            \ForAll{$ir \in irs$}
+                \If{$\exists c \in candidates\ [\text{\sc Some}(f) \gets \text{\sc Match}(c, ir, \top)]$}
+                    \State $candidates \gets (candidates - \{ c \}) \cup \{ f \}$
+                \Else
+                    \State $candidates \gets candidates \cup \{ ir \}$
+                \EndIf
+            \EndFor
+            \State \textbf{return} $candidates$ \textbf{map} $\text{\sc Expand}$ \Comment{recursive expand}
+        \EndFunction
+    \end{algorithmic}
+    \caption{Wrapper function for fusion using Merkle trees.}
+    \label{alg:merkle_fuse}
+\end{algorithm}
+
+Recall that this analysis occurs over disjunctions on a parser.
+This provides a crucial invariant; the types of each disjunction must be the same.
+As long as this invariant is maintained, the fusions are type-safe.
+For example, consider two parsers, \texttt{p <X> q} and \texttt{p <X> r} - if they are of the same type, then \texttt{q} and \texttt{r} must also have the same type.
+A recursive step on \texttt{q} and \texttt{r} will also therefore maintain this invariant.
+The same argument is made for the other side of the combinator.
+
+\subsection{Ordering with Tries}
+Tries also provide another benefit; they can be used to determine the ideal ordering of parsers to prevent the `dangling else' ambiguity.
+This property is used for the `string tries' optimisation discussed in \autoref{sec:str_trie}.
+However, in order to generalise this to parsers, the preprocessor must first establish the sequence in which parsers execute within the disjunction.
+A sequence can be obtained using the existing flattened IR, however, expansion should also be done on the right-hand side.
+Recall that the purpose of only expanding on the left-hand side was to allow for easier reconstruction due to left-associativity - a property that is no longer required as this parse sequence will not be reconstructed.
+
+Again, consider the example presented in \autoref{fig:merkle_fusion_example}.
+Suppose no fusion had occurred, thus only looking at the two disjunctions.
+The two combinator trees would then be flattened into \texttt{[P(p), C(\ap), P(q), C(\ap), P(r), C(\mult), P(s)]} and \texttt{[P(p), C(\ap), P(q), C(\ap), P(r), C(\mult), P(t)]} respectively.
+However, when considering the order in which parsers are applied, the combinators are no longer required and can therefore be stripped out, leaving the sequence to be \texttt{[p, q, r, s]} and \texttt{[p, q, r, t]}, respectively.
+Note the process of retaining only parsers in the example above is overly simplified.
+In reality, larger portions of the flattened parser are observed at a time, similar to peephole optimisation \cite{mckeeman65}.
+This filters out `non-parsers', such as functions when used with \texttt{\fmap}.
+
+While this method of determining the parser sequence allows for an order to be established, it does not allow for parsers to be recovered since the combinators have been discarded.
+In order to remedy this, the structure of a trie is modified; rather than marking a node as being complete, it needs to contain a collection of parsers, which is initially empty.
+On completion of an insert, when the sequence of parsers is empty, the original parser (before flattening) must be added to the collection of complete parsers in a given node.
+A post-order traversal can then be performed on the trie, where the completed collection is appended to the end of the results of its child nodes.
+Since each of the child nodes represents different parsers (with ambiguity being accounted for), adding the result at the end allows for the `shortest' parser to be performed last.
+
+\subsection{Overall Process}
+The previous sections discussed multiple techniques to deal with an abundance of backtracking as well as poorly ordered disjunctions.
+However, the actual implementation relies on all three methods: normalisation, fusion with Merkle trees, and trie ordering.
+
+As a \texttt{PipelineStage}, the entry point of this optimisation exists when processing an \texttt{IR}.
+Note that this is only run when it detects a sequence of disjunctions, all of which are wrapped in an \texttt{attempt}, as this permits for backtracking - a property that many of the optimisations rely on for fusion.
+Once this is detected and collected as a sequence of disjunctions (with the \texttt{attempt}s stripped), normalisation is performed in order to maximise the efficacy of later analysis.
+Next, fusion is performed using the Merkle tree - note that any fusion that occurs in this step is recursive and will undergo the same process.
+At this stage, the result is still a collection of disjunctions, hopefully containing fewer elements than the original due to fusion.
+
+The final step is to combine the disjunctions.
+However, recall that backtracking was removed for the sake of processing.
+If the parsers were na\"ively combined, with no regard to backtracking, there would likely be ambiguities between disjunctions, however, if all parsers were wrapped and combined, the primary purpose of this optimisation would be lost.
+`Ambiguous' parsers are first wrapped with an \texttt{attempt} and then fed into the trie to perform an ordering, whereas parsers with no ambiguity are directly inserted into the tree - note that the sequence of parsers for a wrapped parser and unwrapped parser is the same.
+Not only does this process account for ambiguity, redundant uses of \texttt{attempt} are also removed.
+
+An ambiguity between two parsers \texttt{p} and \texttt{q} occurs when there is some element that exists in the first set of both parsers (defined in \autoref{ssec:first_sets});
+$$\text{ambiguous}(\texttt{p}, \texttt{q}) = \exists r\ [r \in \mathcal{F}(\texttt{p}) \land r \in \mathcal{F}(\texttt{q})]$$
+
+This is a minor simplification - additional logic is in place to prevent two `different' parsers from not being a match.
+For example, two \texttt{satisfy} parsers may have two functions that are different but can be satisfied by the same character, thus consuming input.
+The same can be said for \texttt{Atom}s or identifiers, which cannot be easily inspected - this further motivates the use of the `inlining' functionality introduced in \autoref{ssec:inline}.
+In these cases, where it is non-trivial to inspect, the parsers are marked as ambiguous.
+
+Finally, the trie is traversed, which gives the desired ordering (with ambiguous parsers being wrapped).
+This can then be reduced by combining all terms with the choice operator.

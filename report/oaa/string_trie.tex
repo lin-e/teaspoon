@@ -1,0 +1,101 @@
+\section{String Trie}
+\label{sec:str_trie}
+
+A frequently observed pattern in parsing, especially in programming languages, is a number of alternative strings, namely keywords.
+However, this pattern can often lead to two pitfalls; the first revolves around the ordering of words and the second revolves around the performance penalty caused by backtracking.
+The execution of disjunctions in parser combinators follows the behaviour of PEGs.
+As such, the `dangling else ambiguity' can be easily resolved by a reordering of disjunctions, with the longest pattern first.
+This also means that disjunctions are not commutative (therefore, this optimisation changes the semantics of the parser).
+Consider an example consisting of a subset of TypeScript keywords:
+
+\begin{lstlisting}
+    kw ::= 'as' | 'async' | 'break' | 'case' | 'const' | 'continue'
+\end{lstlisting}
+
+In this order, if the word \texttt{'async'} were to be parsed, the parser would terminate on a successful parse of \texttt{'as'}, with a remainder of \texttt{'ync'}.
+On the other hand, if the order were to be flipped, with \texttt{'as'} being after \texttt{'async'}, the parser would fail due to the input being partially consumed - backtracking is therefore required to reset the state back to where the first parser began.
+However, backtracking operations are inherently expensive, possibly requiring work to be redone.
+Ideally, a parser would have minimal (if any) backtracking (implemented via the use of \texttt{attempt}), and any parsers that contain backtracking would be as `small' as possible.
+
+As noted in Swierstra (2000) \cite{swierstra00}, constructing a `trie' structure allows for possible productions to be grouped by common prefixes, thus eliminating the need for backtracking - ambiguities are resolved as they would be separated into choices that have no conflict.
+Without any backtracking, the parser is able to complete in linear time, after this data structure has been constructed.
+Rather than having this pattern detection and construction being performed at runtime (in TypeScript), this can be done during transpile time (in Scala, within the preprocessor).
+
+While this approach can limit the effectiveness due to its inability to inspect values only known at runtime, most common patterns (such as the motivating example) leverage string literals as keywords, which can trivially be accessed and analysed by the preprocessor.
+By moving the cost of the analysis to the preprocessor, it removes the performance penalty of constructing the trie on the initial run of the parser, which would likely cause an overall performance degradation if the parser is not commonly used or is sufficiently small.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[every node/.style={execute at end node=\vphantom{bg}}]
+        \begin{scope}[shift={(0, 0)}]
+            \node[anchor=west] (o) at (0, 0) {\texttt{?}};
+            \node[anchor=west] (a) at (1, 1) {\texttt{a}};
+            \node[anchor=west] (b) at (1, 0) {\texttt{b}};
+            \node[anchor=west] (c) at (1, -1) {\texttt{c}};
+            \node[anchor=west, draw] (as) at (2, 1) {\texttt{s}};
+            \node[anchor=west] (asy) at (3, 1) {\texttt{y}};
+            \node[anchor=west] (asyn) at (4, 1) {\texttt{n}};
+            \node[anchor=west, draw] (async) at (5, 1) {\texttt{c}};
+            \node[anchor=west] (br) at (2, 0) {\texttt{r}};
+            \node[anchor=west] (bre) at (3, 0) {\texttt{e}};
+            \node[anchor=west] (brea) at (4, 0) {\texttt{a}};
+            \node[anchor=west, draw] (break) at (5, 0) {\texttt{k}};
+            \node[anchor=west] (ca) at (2, -1) {\texttt{a}};
+            \node[anchor=west] (cas) at (3, -1) {\texttt{s}};
+            \node[anchor=west, draw] (case) at (4, -1) {\texttt{e}};
+            \node[anchor=west] (co) at (2, -2) {\texttt{o}};
+            \node[anchor=west] (con) at (3, -2) {\texttt{n}};
+            \node[anchor=west] (cons) at (4, -2) {\texttt{s}};
+            \node[anchor=west, draw] (const) at (5, -2) {\texttt{t}};
+            \node[anchor=west] (cont) at (4, -3) {\texttt{t}};
+            \node[anchor=west] (conti) at (5, -3) {\texttt{i}};
+            \node[anchor=west] (contin) at (6, -3) {\texttt{n}};
+            \node[anchor=west] (continu) at (7, -3) {\texttt{u}};
+            \node[anchor=west, draw] (continue) at (8, -3) {\texttt{e}};
+
+            \draw
+            (o) -- (a) -- (as) -- (asy) -- (asyn) -- (async)
+            (o) -- (b) -- (br) -- (bre) -- (brea) -- (break)
+            (o) -- (c)
+                   (c) -- (ca) -- (cas) -- (case)
+                   (c) -- (co) -- (con)
+                                  (con) -- (cons) -- (const)
+                                  (con) -- (cont) -- (conti) -- (contin) -- (continu) -- (continue);
+        \end{scope}
+        \node[anchor=west] at (7, 0) {$\leadsto$};
+        \begin{scope}[shift={(9, 0)}]
+            \node[anchor=west] (o) at (0, 0) {\texttt{?}};
+            \node[anchor=west] (as) at (1.5, 1) {\texttt{as}};
+            \node[anchor=west, draw] (asE) at (3, 2) {\texttt{\_}};
+            \node[anchor=west, draw] (async) at (3, 1) {\texttt{ync}};
+            \node[anchor=west, draw] (break) at (1.5, 0) {\texttt{break}};
+            \node[anchor=west] (c) at (1.5, -1) {\texttt{c}};
+            \node[anchor=west, draw] (case) at (3, -1) {\texttt{ase}};
+            \node[anchor=west] (con) at (3, -2) {\texttt{on}};
+            \node[anchor=west, draw] (const) at (4.5, -2) {\texttt{st}};
+            \node[anchor=west, draw] (continue) at (4.5, -3) {\texttt{tinue}};
+            \draw
+            (o) -- (as)
+                   (as) -- (asE)
+                   (as) -- (async)
+            (o) -- (break)
+            (o) -- (c)
+                   (c) -- (case)
+                   (c) -- (con)
+                          (con) -- (const)
+                          (con) -- (continue);
+        \end{scope}
+    \end{tikzpicture}
+    \caption{
+        Left: uncompressed (na\"{i}ve) trie, right: compressed (radix) trie.
+        The initial \texttt{?} denotes the root, a box denotes a `complete' word, and \texttt{\_} denotes the empty ($\varepsilon$) string, \texttt{pure("")}.
+    }
+    \label{fig:trie}
+\end{figure}
+
+The preprocessor implements this optimisation by first detecting chains of \texttt{Str} or \texttt{Chr} (in the IR) and attempting to extract a list of string or character literals.
+These literals are then inserted into an uncompressed trie (one character at a time) in order to allow for escape sequences to be easily handled.
+Once all words have been inserted, the trie is compressed, as seen in \autoref{fig:trie}.
+This structure is then converted back into a parser bottom-up; the order of alternatives does not matter as long as the empty string (if present) is at the end.
+Note that a bottom-up (leaf to root) construction is only valid if the combinators or operations to join the parsers are associative, or are naturally right-associative.
+Fortunately, in the case of string concatenation, this holds.

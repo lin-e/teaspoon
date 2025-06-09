@@ -1,0 +1,89 @@
+\appendix
+\chapter{Supplementary Material}
+\vspace{-\baselineskip}
+
+\subsubsection*{Combinator Types (\textit{Teaspoon})}
+\vspace{-0.5\baselineskip}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lc||lll}
+        \textbf{function} & \textbf{operator} & \textbf{LHS type} & \textbf{RHS type} & \textbf{combinator type} \\
+        \hline
+        \texttt{ap} & \texttt{\ap} & \texttt{P<(a: A) => B>} & \texttt{P<A>} & \texttt{P<B>} \\
+        \texttt{pa} & \texttt{\pa} & \texttt{P<A>} & \texttt{P<(a: A) => B>} & \texttt{P<B>} \\
+        \texttt{apL} & \texttt{\apl} & \texttt{P<A>} & \texttt{P<B>} & \texttt{P<A>} \\
+        \texttt{apR} & \texttt{\apr} & \texttt{P<A>} & \texttt{P<B>} & \texttt{P<B>} \\
+        \texttt{choice} & \texttt{\choice} & \texttt{P<A>} & \texttt{P<A>} & \texttt{P<A>} \\
+        \texttt{mult} & \texttt{\mult} & \texttt{P<A>} & \texttt{P<B>} & \texttt{P<[A, B]>} \\
+        \texttt{multL} & \texttt{\multl} & \texttt{P<A>} & \texttt{P<B>} & \texttt{P<A>} \\
+        \texttt{multR} & \texttt{\multr} & \texttt{P<A>} & \texttt{P<B>} & \texttt{P<B>} \\
+        \texttt{fmap} & \texttt{\fmap} & \texttt{(a: A) => B} & \texttt{P<A>} & \texttt{P<B>} \\
+        \texttt{pamf} & \texttt{\pamf} & \texttt{P<A>} & \texttt{(a: A) => B} & \texttt{P<B>} \\
+        \texttt{constFmapL} & \texttt{\constfmapl} & \texttt{A} & \texttt{P<B>} & \texttt{P<A>} \\
+        \texttt{constFmapR} & \texttt{\constfmapr} & \texttt{P<A>} & \texttt{B} & \texttt{P<B>} \\
+        \texttt{liftCons} & \texttt{<:>} & \texttt{P<A>} & \texttt{P<A[]>} & \texttt{P<A[]>} \\
+        \texttt{label} & \texttt{<?>} & \texttt{P<A>} & \texttt{string} & \texttt{P<A>}
+    \end{tabular}
+    \caption{Implemented combinators and their respective types, \texttt{P} denotes \texttt{Parser} for brevity}
+    \label{tab:combinators}
+\end{table}
+
+\subsubsection*{CLI Options}
+\vspace{-0.5\baselineskip}
+
+\begin{table}[H]
+    \centering
+    \begin{tabularx}{\linewidth}{ll||X}
+        \textbf{abbreviation} & \textbf{type} & \textbf{description} \\
+        \hline
+        \texttt{-h} & $\times$ & Displays the help menu \\
+        \texttt{-o} & file & (\textbf{required}) Path to target (new) file \\
+        \texttt{-p} & toggle & Reformats the generated code (via the use of \textit{prettier}) \\
+        \texttt{-a} & toggle & Enable all optimisations \\
+        \texttt{-icc} & toggle & Implicitly convert chars / strings when used directly with a combinator \\
+        \texttt{-cr} & toggle & Remove redundant alternatives \\
+        \texttt{-lra} & toggle & Analyse and attempt remediation of left-recursive productions \\
+        \texttt{-st} & toggle & Analyse string choice chains and optimise \\
+        \texttt{-br} & toggle & Analyse attempt chains and optimise to reduce backtracking by factoring \\
+        \texttt{-plo} & toggle & Basic optimisations using parser laws \\
+        \texttt{-ngfs} & toggle & Restrict first set analysis to local declaration (global by default)
+    \end{tabularx}
+    \caption{Options and flags available for the CLI}
+    \label{tab:cli_opt}
+\end{table}
+
+\subsubsection*{Example AST}
+\begin{capminted}
+    \begin{minted}{scala}
+        BinaryOpExpr(
+          BinaryOpExpr(
+            BinaryOpExpr(
+              Identifier("expr"),
+              BinaryOpExpr(
+                ArrowFunctionIdentifier(
+                  Identifier("x"),
+                  ArrowFunctionIdentifier(
+                    Identifier("y"),
+                    BinaryOpExpr(Identifier("x"), Identifier("y"), "+")
+                  )
+                ),
+                MemberCall(
+                  Identifier("chr"),
+                  Arguments(None, List(Literal("'+'")))
+                ),
+                "<$"
+              ),
+              "<**>"
+            ),
+            Identifier("nat"),
+            "<*>"
+          ),
+          Identifier("nat"),
+          "<|>"
+        )
+    \end{minted}
+    \vspace{-0.5\baselineskip}
+    \caption{Parsed AST for running example of simple addition calculator}
+    \label{lst:running_ast}
+\end{capminted}

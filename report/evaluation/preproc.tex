@@ -1,0 +1,16 @@
+\section{Preprocessor}
+\label{sec:eva_preproc}
+
+It is inherently difficult to accurately reason about the performance of the preprocessor.
+First and foremost, the amount of time spent in each pipeline stage is extremely dependent on the parsers defined - as such, it is challenging to generate example programs that can stress all aspects of the optimiser.
+
+However, it may still prove valuable to reason about the complexity of certain aspects of the optimiser.
+It is also important to note that certain steps, such as computing the first sets (both global and local), are subject to memoisation in an effort to avoid repeated computation at the cost of space.
+Therefore, it is reasonable to approximate it as a constant time operation once it is computed.
+
+For a single production (lexical declaration) consisting of $m$ disjunctions, each with a `size' (number of combinators) of $n$, the time spent in the left recursion analysis stage is approximately $O(mn)$.
+Considering a single disjunction (therefore, this has to be done $m$ times), the worst-case scenario is when the parser is detected to be left-recursive ($\approx$ constant time, as mentioned before), and the entire combinator falls into the first parser argument after normalisation; thus it must be entirely reduced.
+This will take $n$ steps (almost exactly that, other than the cases which bootstrap off existing cases), each of which are constant time, and a final rewrite step, which is also constant time.
+Similarly, the worst case (completely unbalanced tree) for a single fusion step is also $O(mn)$ - without even accounting for the recursive fusion steps.
+
+However, it is important to remember that the preprocessor essentially acts as an optimising compiler to some extent, the complexity of which is non-polynomial \cite{goss13}.

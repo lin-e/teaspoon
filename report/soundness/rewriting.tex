@@ -1,0 +1,207 @@
+\section{Rewriting Left Recursion}
+\label{sec:sound_rewrite}
+
+Let two parsers be defined as `similar' if the intended result are the same given the same input.
+The goal is to show that the parser \violet{$\texttt{lift2(f}_\texttt{u}\texttt{, p, q) \choice a}$} can be written as \teal{$\texttt{postfix a (flip f \fmap q)}$} (similar).
+Correctness of this is established when an input sentence $\mathcal{S}$ gives the expected result on both parsers.
+However, equivalence cannot be directly established since the behaviour is fundamentally different; the first parser will infinitely recurse due to the left-recursive production, whereas the goal of the refactoring is to obtain a parser that terminates via iteration.
+
+Note that the parser results in the following grammar; $p \to pq\ |\ a$.
+However, this is clearly left-recursive, following the basic rewriting steps, the resultant productions are $p \to ap^\prime$ and $p^\prime \to qp^\prime\ |\ \varepsilon$.
+For brevity, let this be denoted as $p \to aq*$, where $q*$ denotes zero or more occurrences of $q$.
+\bigskip
+
+The following definition, adapted from Willis \& Wu (2021) \cite{willis21}, is used for $\texttt{postfix}$:
+
+\begin{minted}{haskell}
+    postfix a op = a <**> rest
+      where
+        rest = flip (.) <$> op <*> rest <|>
+               pure id
+\end{minted}
+
+Prior to performing induction over the structure of $\mathcal{S}$, certain cases can be analysed and reasoned over.
+The primary cases are when the sentence does not match at all, the sentence partially matches (when the sentence begins with a valid production but does not entirely match), and finally, when the entire sentence matches.
+
+In the case that $\mathcal{S} = s$, where $s$ does not start with $a$ (hence an invalid production), both parsers would fail; thus they are trivially `similar'.
+Similarly, consider the case where $\mathcal{S} = ps$, where $s$ does not start with $q$; after $p$ is parsed, the next step for both parsers would be an attempt to parse $q$ on $s$, which will fail.
+In this case, the parsers are similar for $\mathcal{S} = ps$ as long as the parsers are similar for $\mathcal{S} = p$.
+
+Consider the non-trivial case where the input string exactly follows the production of $p$ (such that $\mathcal{S} = p$).
+The proof follows induction over the structure of $p$.
+
+\subsection{Base Case}
+The goal in this case is to prove that \teal{$\texttt{p} = \texttt{postfix a (flip f \fmap q)}$} results in \violet{$\texttt{a}$} (similar), when the input is $\mathcal{S} = a$.
+\begin{align*}
+    \texttt{p} =\ & \texttt{a \pa pure id} & \text{(1)} \\
+    =\ & \texttt{flip (\$) \fmap a \ap pure id} & \equi[1] \\
+    =\ & \texttt{pure (flip (\$)) \ap a \ap pure id} & \equi[5] \\
+    % =\ & \texttt{pure (\textbackslash f -> f id) \ap (pure (flip (\$)) \ap a)} \\
+    =\ & \texttt{pure (\textbackslash f -> f id).(flip (\$)) \ap a} & \equi[8] \\
+    =\ & \texttt{pure id \ap a} & \text{(2)} \\
+    =\ & \texttt{a}
+\end{align*}
+\begin{enumerate}[(1)]
+    \itemsep0em
+    \item Since $\mathcal{S} = a$, the first use of \texttt{rest} takes the second branch (\texttt{pure id}) as the first branch will fail.
+    \item Remaining work is to prove that $\texttt{g} = \texttt{(\textbackslash f -> f id).(flip (\$))}$ is equivalent to the identity function.
+        \begin{align*}
+            \texttt{id} =\ & \lambda x \to x \\
+            \texttt{g} =\ & (\lambda f \to f\ (\lambda x \to x)) \cdot (\lambda xy \to y\ x) \\
+            =\ & \lambda x \to (\lambda f \to f\ (\lambda x \to x))((\lambda xy \to y\ x)\ x) \\
+            =\ & \lambda x \to (\lambda y \to y\ x)(\lambda x \to x) \\
+            =\ & \lambda x \to (\lambda x \to x)\ x \\
+            =\ & \lambda x \to x
+        \end{align*}
+\end{enumerate}
+
+\subsection{Inductive Case}
+For brevity, let $r = aq*$, and assume that this property holds for $\mathcal{S} = r$.
+The goal in this case is to prove that \teal{$\texttt{postfix a (flip f \fmap q)}$} results in \violet{$\texttt{lift2(f}_\texttt{u}\texttt{, r, q)}$}, when the input is $\mathcal{S} = (aq*)q$.
+
+\subsubsection*{Auxiliary Result on \texttt{postfix}}
+
+% In order to prove this property, the first step is to show that $\texttt{lift2(f}_\texttt{u}\texttt{, a, q)}$ is similar to $\texttt{lift2(f}_\texttt{u}\texttt{, r, q)}$ on $\mathcal{S} = (aq*)q$.
+In order to prove this, the first step is to show that $\texttt{postfix a (flip f \fmap q)}$ is similar to $\texttt{postfix r (flip f \fmap q)}$ on $\mathcal{S} = (aq*)q$.
+To formalise this, take the input as $\mathcal{S} = aq^nq = aq^{n + 1}$ (arbitrary $n \geq 0$), where $q^k$ denotes $k$ occurrences (successful parses) of $q$.
+
+In the base case, let $m = 0$.
+This can easily be shown to hold, as $aq^0 = a$, therefore $\texttt{postfix a (flip f \fmap q)}$ is trivially equivalent to $\texttt{postfix a (flip f \fmap q)}$.
+In the inductive case, assume that this holds for $m = k - 1$.
+The assumption states that $\texttt{postfix a (flip f \fmap q)}$ is similar to $\texttt{postfix aq}^\texttt{k-1}\texttt{ (flip f \fmap q)}$. \\
+Using this assumption, it is sufficient to prove that $\texttt{postfix aq}^\texttt{k-1}\texttt{ (flip f \fmap q)}$ is similar to $\texttt{postfix aq}^\texttt{k}\texttt{ (flip f \fmap q)}$.
+First, $\texttt{aq}^\texttt{k}$ is defined as;
+\begin{align*}
+    \texttt{aq}^\texttt{0} =\ & \texttt{a} \\
+    \texttt{aq}^\texttt{k} =\ & \texttt{lift2(f}_\texttt{u}\texttt{, aq}^\texttt{k-1}\texttt{, q)} \\
+    =\ & \texttt{aq}^\texttt{k-1}\texttt{ \pa (pure (flip f) \ap q)}
+\end{align*}
+
+Let $\texttt{b} = \texttt{aq}^\texttt{k-1}\texttt{ \pa (pure (flip f) \ap q)}$, in order to verify the equivalence stated above;
+\begin{align*}
+    \texttt{b} =\ & \texttt{pure (flip (\$)) \ap aq}^\texttt{k-1}\texttt{ \ap (pure (flip f) \ap q)} & \equi[1] \\
+    =\ & \texttt{pure (.) \ap (pure (flip (\$)) \ap aq}^\texttt{k-1}\texttt{) \ap} & \equi[4] \\
+    & \texttt{pure (flip f) \ap q} \\
+    =\ & \texttt{pure (.).(flip (\$)) \ap aq}^\texttt{k-1}\texttt{ \ap pure (flip f) \ap q} & \equi[7] \\
+    % =\ & \texttt{pure (\textbackslash g -> g (flip f)) \ap (pure (.).(flip (\$)) \ap aq}^\texttt{k-1}\texttt{) \ap q} \\
+    =\ & \texttt{pure }\overbrace{\texttt{(\textbackslash g -> g (flip f)).((pure (.).(flip (\$)))}}^{\beta}\texttt{ \ap} & \equi[8] \\
+    & \texttt{aq}^\texttt{k-1}\texttt{ \ap q} \\
+    =\ & \texttt{pure f \ap aq}^\texttt{k-1}\texttt{ \ap q} \\
+    =\ & \texttt{lift2(f}_\texttt{u}\texttt{, p, q)} & \equi[12] \\
+    % \texttt{flip (\$)} =\ & \lambda xg \to g\ x \\
+    \beta =\ & \lambda x \to (\lambda g \to g\ (\texttt{flip}\ f))(((\cdot) \cdot (\lambda xg \to g\ x))\ x) \\
+    =\ & \lambda x \to (\lambda g \to g\ (\texttt{flip}\ f))((\lambda g \to g\ x) \cdot) \\
+    =\ & \lambda x \to (\lambda g \to g\ x) \cdot (\texttt{flip}\ f) \\
+    =\ & \lambda xy \to (\lambda g \to g\ x) ((\texttt{flip}\ f)\ y) \\
+    =\ & \lambda xy \to (\texttt{flip}\ f)\ y\ x \\
+    =\ & \lambda xy \to f\ x\ y
+\end{align*}
+
+The goal is to now show that $\texttt{c} = \texttt{postfix aq}^\texttt{k-1}\texttt{ (flip f \fmap q)}$ is similar (for a sentence $\mathcal{S} = aq^n$ where $n \geq m$) to $\texttt{d} = \texttt{postfix aq}^\texttt{k}\texttt{ (flip f \fmap q)}$.
+\begin{align*}
+    \texttt{R} =\ & \begin{cases}
+        \texttt{pure id} & \text{if } n = m \\
+        \texttt{flip (.) \fmap (flip f \fmap q) \ap rest} & \text{if } n > m
+    \end{cases} \\
+    \texttt{Q} =\ & \texttt{flip f \fmap q} \\
+    \texttt{c} =\ & \texttt{aq}^\texttt{k-1}\texttt{ \pa (flip (.) \ap Q \ap R)} \\
+    =\ & \texttt{pure (flip (\$)) \ap aq}^\texttt{k-1}\texttt{ \ap (flip (.) \ap Q \ap R)} & \equi[1] \\
+    =\ & \texttt{pure (.) \ap (pure (flip (\$)) \ap aq}^\texttt{k-1}\texttt{) \ap} & \equi[4] \\
+    & \texttt{(pure (flip (.)) \ap Q) \ap R} \\
+    =\ & \texttt{pure (.).(flip (\$)) \ap aq}^\texttt{k-1}\texttt{ \ap} & \equi[7] \\
+    & \texttt{(pure (flip (.)) \ap Q) \ap R} \\
+    =\ & \texttt{pure (.) \ap (pure (.).(flip (\$)) \ap aq}^\texttt{k-1}\texttt{ \ap} & \equi[4] \\
+    & \texttt{pure (flip (.)) \ap Q \ap R} \\
+    =\ & \texttt{pure (.).((.).(flip (\$))) \ap aq}^\texttt{k-1}\texttt{ \ap} & \equi[7] \\
+    & \texttt{pure (flip (.)) \ap Q \ap R} \\
+    % =\ & \texttt{pure (\textbackslash h -> h (flip (.))) \ap (pure (.).((.).(flip (\$))) \ap aq}^\texttt{k-1}\texttt{) \ap Q \ap R} & \equi[2] \\
+    =\ & \texttt{pure }\overbrace{\texttt{(\textbackslash h -> h (flip (.))).((.).((.).(flip (\$))))}}^{\gamma}\texttt{ \ap} & \equi[8] \\
+    & \texttt{aq}^\texttt{k-1}\texttt{ \ap Q \ap R} \\
+    % =\ & \texttt{pure }\underbrace{\texttt{(.).((.).(flip (\$)))}}_{\gamma}\texttt{ \ap aq}^\texttt{k-1}\texttt{ \ap Q \ap R} \\
+    \texttt{d} =\ & \texttt{aq}^\texttt{k}\texttt{ \pa R} & \text{(1)} \\
+    =\ & \texttt{pure (flip (\$)) \ap aq}^\texttt{k}\texttt{ \ap R} & \equi[1] \\
+    =\ & \texttt{pure (flip (\$)) \ap (aq}^\texttt{k-1}\texttt{ \pa Q) \ap R} & \text{(2)} \\
+    =\ & \texttt{pure (flip (\$)) \ap} & \equi[1] \\
+    & \texttt{(pure (flip (\$)) \ap aq}^\texttt{k-1}\texttt{ \ap Q) \ap R} \\
+    =\ & \texttt{pure (.)(flip (\$)) \ap (pure (flip (\$)) \ap aq}^\texttt{k-1}\texttt{) \ap} & \equi[4] \\
+    & \texttt{Q \ap R} \\
+    =\ & \texttt{pure }\underbrace{\texttt{((.)(flip (\$))).(flip (\$))}}_{\delta}\texttt{ \ap aq}^\texttt{k-1}\texttt{ \ap Q \ap R} & \equi[7] \\
+    \gamma =\ & (\lambda h \to h\ (\texttt{flip}\ (\cdot))) \cdot ((\cdot) \cdot ((\cdot) \cdot (\lambda xf \to f\ x))) \\
+    =\ & \lambda x \to (\lambda h \to h\ (\texttt{flip}\ (\cdot))) (((\cdot) \cdot ((\cdot) \cdot (\lambda xf \to f\ x)))\ x) \\
+    =\ & \lambda x \to (\lambda h \to h\ (\texttt{flip}\ (\cdot))) ((\cdot) (((\cdot) \cdot (\lambda xf \to f\ x))\ x )) \\
+    =\ & \lambda x \to (\lambda h \to h\ (\texttt{flip}\ (\cdot))) ((\cdot) ((\cdot) ((\lambda xf \to f\ x)\ x))) \\
+    =\ & \lambda x \to (\lambda h \to h\ (\texttt{flip}\ (\cdot))) ((\cdot) ((\cdot) (\lambda f \to f\ x))) \\
+    =\ & \lambda x \to ((\cdot) (\lambda f \to f\ x)) \cdot (\texttt{flip}\ (\cdot)) \\
+    =\ & \lambda xg \to (\lambda f \to f\ x) \cdot ((\texttt{flip}\ (\cdot))\ g) \\
+    =\ & \lambda xgf \to (\lambda f \to f\ x) ((\texttt{flip}\ (\cdot))\ g\ f) \\
+    =\ & \lambda xgf \to (f \cdot g)\ x \\
+    =\ & \lambda xgf \to f\ (g\ x) \\
+    \delta =\ & ((\cdot) (\lambda xf \to f\ x)) \cdot (\lambda xf \to f\ x) \\
+    =\ & \lambda x \to (\lambda xf \to f\ x) \cdot ((\lambda xf \to f\ x)\ x) \\
+    =\ & \lambda xg \to (\lambda xf \to f\ x) (((\lambda xf \to f\ x)\ x)\ g) \\
+    =\ & \lambda xg \to (\lambda xf \to f\ x) (g\ x) \\
+    =\ & \lambda xg \to (\lambda f \to f\ (g\ x)) \\
+    =\ & \lambda xgf \to f\ (g\ x)
+\end{align*}
+\begin{enumerate}[(1)]
+    \itemsep0em
+    \item Note that there is one less occurrence of \texttt{q}, as it moves to the `atom' part of \texttt{postfix}.
+    \item Using the definition of $\texttt{aq}^\texttt{k}$ from earlier.
+\end{enumerate}
+
+As $\gamma = \delta$, it follows that $\texttt{c} = \texttt{d}$.
+This result shows that it is sound to substitute $\texttt{lift2(f}_\texttt{u}\texttt{, a, q)}$ with $\texttt{lift2(f}_\texttt{u}\texttt{, a}^\texttt{m}\texttt{, q)}$ on the input $\mathcal{S} = aq^n$, so long as $m \leq n$.
+By obtaining this auxiliary result, the problem is reduced to proving similarity on a single case.
+
+\subsubsection*{Proving Similarity}
+Recall that the input sequence is $\mathcal{S} = aq^{n + 1} = rq$.
+The goal in this final step is to show that $\texttt{postfix a (flip f \fmap q)}$ is similar to $\texttt{lift2(f}_\texttt{u}\texttt{, r, q)}$, where $\texttt{r}$ is $\texttt{a}^\texttt{n}$.
+Once this result is verified, the inductive step is complete.
+\begin{align*}
+    & \texttt{postfix a (flip f \fmap q)} \\
+    =\ & \texttt{postfix r (flip f \fmap q)} & \text{(1)} \\
+    =\ & \texttt{r \pa rest} \\
+    =\ & \texttt{r \pa (flip (.) \fmap (flip f \fmap q) \ap pure id)} & \text{(2)} \\
+    =\ & \texttt{r \pa (pure (flip (.)) \ap (pure (flip f) \ap q) \ap)} & \equi[5] \\
+    & \texttt{{} {} {} {} {} {} {} {} pure id)} \\ % TODO: this is a hack
+    =\ & \texttt{r \pa (pure (flip (.)).(flip f) \ap q \ap pure id)} & \equi[7] \\
+    % =\ & \texttt{r \pa (pure (\textbackslash g -> g id) \ap (pure (flip (.)).(flip f) \ap q))} \\
+    =\ & \texttt{r \pa (pure (\textbackslash g -> g id).((flip (.)).(flip f)) \ap q} & \equi[8] \\
+    =\ & \texttt{r \pa (pure (flip f) \ap q)} & \text{(3)} \\
+    =\ & \texttt{pure (flip (\$)) \ap r \ap (pure (flip f) \ap q)} & \equi[1] \\
+    =\ & \texttt{pure (.) \ap (pure (flip (\$)) \ap r) \ap} & \equi[4] \\
+    & \texttt{pure (flip f) \ap q} \\
+    =\ & \texttt{pure (.).(flip (\$)) \ap r \ap pure (flip f) \ap q} & \equi[7] \\
+    % =\ & \texttt{pure (\textbackslash g -> (flip f)) \ap (pure (.).(flip (\$)) \ap r) \ap q} \\
+    =\ & \texttt{pure (\textbackslash g -> (flip f)).((.).(flip (\$))) \ap r \ap q} & \equi[8] \\
+    =\ & \texttt{pure f \ap r \ap q} & \text{(4)} \\
+    =\ & \texttt{lift2(f}_\texttt{u}\texttt{, r, q)} & \equi[12]
+\end{align*}
+\begin{enumerate}[(1)]
+    \itemsep0em
+    \item Using the result from before, as $\texttt{r} = \texttt{aq}^\texttt{n}$.
+    \item Since the input sequence has more $q$, on the first use of \texttt{rest} the first branch is taken, but the second branch is taken on the second (recursive) use of \texttt{rest}.
+    \item Obtained as follows;
+        \begin{align*}
+            & (\lambda g \to g\ \texttt{id}) \cdot ((\texttt{flip}\ (\cdot)) \cdot (\texttt{flip}\ f)) \\
+            =\ & \lambda x \to (\lambda g \to g\ \texttt{id}) (((\texttt{flip}\ (\cdot)) \cdot (\texttt{flip}\ f))\ x) \\
+            =\ & \lambda x \to (\lambda g \to g\ \texttt{id}) ((\texttt{flip}\ (\cdot)) ((\texttt{flip}\ f)\ x)) \\
+            =\ & \lambda x \to (\texttt{flip}\ (\cdot)) ((\texttt{flip}\ f)\ x)\ \texttt{id} \\
+            =\ & \lambda x \to \texttt{id} \cdot ((\texttt{flip}\ f)\ x) \\
+            =\ & \lambda x \to (\texttt{flip}\ f)\ x
+        \end{align*}
+    \item Obtained as follows;
+        \begin{align*}
+            & (\lambda g \to g\ (\texttt{flip}\ f)) \cdot ((\cdot) \cdot (\lambda xf \to f\ x)) \\
+            =\ & \lambda x \to (\lambda g \to g\ (\texttt{flip}\ f)) (((\cdot) \cdot (\lambda xf \to f\ x))\ x) \\
+            =\ & \lambda x \to (\lambda g \to g\ (\texttt{flip}\ f)) ((\cdot) ((\lambda xf \to f\ x)\ x)) \\
+            =\ & \lambda x \to (\lambda g \to g\ (\texttt{flip}\ f)) ((\lambda f \to f\ x) \cdot) \\
+            =\ & \lambda x \to (\lambda f \to f\ x) \cdot (\texttt{flip}\ f) \\
+            =\ & \lambda xy \to (\lambda f \to f\ x) ((\texttt{flip}\ f)\ y) \\
+            =\ & \lambda xy \to (\texttt{flip}\ f)\ y\ x \\
+            =\ & \lambda xy \to f\ x\ y
+        \end{align*}
+\end{enumerate}
+
+As similarity is shown when $\mathcal{S} = a$ and assuming similarity when $\mathcal{S} = aq^k$ implies similarity for $\mathcal{S} = aq^{k + 1}$, the property holds for all $\mathcal{S}$ following the production of $p$ by induction.
+Since this rewrite maintains the desired semantics - the conversion of a set of disjunctions, some of which are directly left recursive, to \texttt{postfix} is sound.

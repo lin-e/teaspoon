@@ -1,0 +1,33 @@
+\section{Future Work}
+\label{sec:future}
+
+While the preprocessor and library (in their current state) achieve the desired, successful results, there still remain numerous avenues in which the project can be extended further.
+
+\paragraph*{Optimising the Library}
+
+As library performance was not the primary goal of this project, it stands to reason that a future improvement is to optimise the library.
+This would involve changing the underlying architecture, as described by Willis \& Wu (2018) \cite{willis18}, rather than closely adhering to \textit{Parsec}'s implementation.
+The majority of parser combinator libraries currently available for TypeScript or JavaScript use a similar underlying implementation rather than anything similar to the stack machine used in \textit{Parsley}.
+
+\paragraph*{More Cases for Analysis}
+
+An obvious next step would be to attempt to consider even more cases for analysis, particularly for the left recursion optimisation step.
+Similarly, the current implementation of inspecting first sets is limited by a number of cases which cannot trivially be inspected, namely \texttt{satisfy} and \texttt{re}.
+The latter is a significantly easier case, compared to the former which would require much deeper inspection into the predicate function.
+However both require the ability for the preprocessor to construct a set of characters which would fit the required pattern.
+
+\paragraph*{Further Static Analysis}
+
+Since the preprocessor has a global scope, it would be feasible to perform further analysis on the program.
+One example of this would be inspecting arbitrary function calls when the definition is available.
+Recall the limitation first stated in \autoref{ssec:inline}, where simple functions cannot be trivially inspected - if the preprocessor was able to determine the result of the function and whether it had any side effects, it would be feasible to hoist the definition out to perform further optimisations.
+The same could be done for declarations; if the value of a declaration is verified to not be changed through any execution path, then it could safely be inlined.
+Additionally, performing inspection into functions that are used in \texttt{\fmap} can also be beneficial for optimisations - for example, if \texttt{f \fmap p \ap q} was known to be equivalent to \texttt{p \apl q}, a simple substitution could occur to allow for more effective optimisations later on.
+
+\paragraph*{General Optimisations for TypeScript}
+
+While the preprocessor was designed for the optimisation of parser combinators, it is still capable of performing optimisations over the AST of a program regardless of the presence of combinators.
+This would be prior to any compilation to JavaScript, as the TypeScript compiler does not perform any optimisation.
+Simple examples of optimisations that could be performed include loop-invariant code motion, where code that has no side effects and exists within a loop can be lifted out.
+Performing these optimisations could also benefit the performance of the parsers.
+For example, \autoref{sec:perf} highlights the performance uplift from replacing recursive calls with iteration - it would be possible to detect cases of tail recursion and replace them with semantically equivalent loops.

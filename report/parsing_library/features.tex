@@ -1,0 +1,37 @@
+\section{Features}
+\label{sec:features}
+
+\textit{Teaspoon} provides a number of primitives, as described in \autoref{ssec:primitives}, with \texttt{satisfy} being treated as a primitive alongside \texttt{item}.
+Regarding the predicate passed into \texttt{satisfy}; an expectation is made that the condition is applicable only to characters as TypeScript does not distinguish between characters and strings.
+Note that \texttt{return} is named \texttt{pure} in order to avoid conflicting with TypeScript's \texttt{return} keyword.
+Additionally, \texttt{try} is named \texttt{attempt} for the same reason.
+Finally, the failure parser is defined as a parameterless function in order to support polymorphism - \texttt{empty<A>()}.
+Another addition is the presence of a parsing primitive based on regular expressions.
+Note that using regular expressions can be preferable in many cases - in the case of natural numbers, there is a threefold performance improvement using \texttt{nat\_r} in \autoref{lst:reg_prim} versus using \texttt{nat\_c} to parse a 16-digit number\footnote{$9,007,199,254,740,991$ is the value of \texttt{Number.MAX\_SAFE\_INTEGER} ($2^{53}-1$) \cite{es2015spec}}.
+
+\begin{capminted}
+    \begin{minted}{typescript}
+        let nat_c = fmap(
+            (s: string[]) => parseInt(s.join("")),
+            many1(satisfy((c: string) => c >= '0' && c <= '9'))
+        );
+        let nat_r = fmap((s: string) => parseInt(s), re(/[0-9]+/));
+    \end{minted}
+    \vspace{-0.5\baselineskip}
+    \caption{Natural number parser based on using `traditional' primitives (\texttt{nat\_c}) versus parser using regular expressions (\texttt{nat\_r})}
+    \label{lst:reg_prim}
+\end{capminted}
+
+In addition to the primitives, the library provides a number of combinators, including derived combinators, described throughout \autoref{sec:type}.
+An important difference to note is that the implementation utilises the same semantics as previously described, albeit with uncurried functions.
+The combinators and their respective types are shown in \autoref{tab:combinators}.
+
+Alongside the `operator'-based combinators, some commonly used derived functions are also implemented.
+Within the library, the implemented functions include the homogenous chain combinators, described by Willis \& Wu (2021) \cite{willis21}, \texttt{chainl1}, \texttt{chainr1}, and \texttt{postfix}.
+In addition to the chain combinators, implementations exist for \texttt{liftN} (from \texttt{lift2} up until \texttt{lift9}).
+However, recall that a benefit of parser combinators is the ability for the user to implement this functionality, should anything be lacking.
+Finally, additional higher-order functions are also included to permit operations such as \texttt{uncurry}, \texttt{curry}, and \texttt{flip}.
+These functions, alongside \texttt{const} and \texttt{id}, are usable by the user, as well as by the preprocessor.
+
+As this library is based on \textit{Parsec}, the same error message semantics are included; thus, meaningful error messages are provided in the parse result.
+In addition to the error messages, the \texttt{label} operator (\texttt{<?>}) is also included to improve messages.

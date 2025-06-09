@@ -1,0 +1,20 @@
+\chapter{Optimisation and Analysis}
+\label{chap:oaa}
+
+The optimisation stage, introduced in \autoref{chap:preprocessor}, forms the crux of the preprocessor.
+This chapter provides a deeper insight into each of the various optimisations and how they can remedy common pitfalls present in parser combinators.
+These optimisations include simple changes to the parsers via parser laws to simplify the combinator tree, as well as deeper optimisations which can alter the semantics such as rewriting a grammar to support left recursion.
+Multiple optimisations that aid in improving performance from backtracking are also explored, including a specific case for alternative strings as well as a more generalised case on combinators.
+
+\input{oaa/simple.tex}
+\input{oaa/lrec.tex}
+\input{oaa/string_trie.tex}
+\input{oaa/backtrack.tex}
+
+\section*{Summary}
+Throughout this chapter, a number of techniques for improving the performance or usability of parsers have been explored.
+These techniques range from `lawful' optimisations based on destructive parser laws, to automated grammar refactoring which fundamentally changes the semantics of a parser, to optimisations that reduce the amount of backtracking performed.
+The efficacy of these optimisation stages is analysed further in \autoref{sec:ev_oaa}.
+
+In the case of grammar refactoring, a number of rules were stated with little to no evidence, aside from intuition.
+These equivalences and conversions are explored in greater detail in \autoref{chap:soundness}, where the soundness of the aforementioned transformations are shown.

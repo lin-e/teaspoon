@@ -1,0 +1,146 @@
+\section{Reductions}
+\label{sec:sound_reductions}
+
+Reductions, introduced in \autoref{sec:lrec_analysis}, form part of the rewriting process for left-recursive productions.
+This section proves the validity of these reductions, as well as describes the transformations, if any, that are required for the function component of \texttt{lift2}.
+
+\subsection{Reduction of \texttt{\apl}}
+\label{ssec:reduce_discard}
+% The goal is to show equivalence between $\texttt{a} = \texttt{lift2(f}_\texttt{u}\texttt{, p \apl q, r)}$ and $\texttt{b} = \texttt{lift2(f}_\texttt{u}\texttt{, p, q \apr r)}$.
+The goal is to show that $\texttt{a} = \texttt{lift2(f}_\texttt{u}\texttt{, p \apl q, r)}$ and $\texttt{b} = \texttt{lift2(f}_\texttt{u}\texttt{, p, q \apr r)}$ are equivalent, thus permitting the reduction.
+\begin{align*}
+    \texttt{a} =\ & \texttt{pure f \ap (p \apl q) \ap r} & \equi[12] \\
+    =\ & \texttt{(pure f \ap p) \apl q \ap r} & \equi[6] \\
+    =\ & \texttt{pure const \ap (pure f \ap p) \ap q \ap r} & \equi[9] \\
+    =\ & \texttt{pure }\underbrace{\texttt{const.f}}_{\alpha}\texttt{ \ap p \ap q \ap r} & \equi[7] \\
+    \texttt{FC} =\ & \texttt{flip const} & \text{(1)} \\
+    \texttt{b} =\ & \texttt{pure f \ap p \ap (q \apr r)} & \equi[12] \\
+    =\ & \texttt{pure f \ap p \ap (pure FC \ap q \ap r)} & \equi[10] \\
+    =\ & \texttt{pure (.) \ap (pure f \ap p) \ap (pure FC \ap q) \ap r} & \equi[4] \\
+    =\ & \texttt{pure (.).f \ap p \ap (pure FC \ap q) \ap r} & \equi[7] \\
+    =\ & \texttt{pure (.) \ap (pure (.).f \ap p) \ap pure FC \ap} & \equi[4] \\
+    & \texttt{q \ap r} \\
+    =\ & \texttt{pure (.).((.).f) \ap p \ap pure FC \ap q \ap r} & \equi[7] \\
+    % =\ & \texttt{pure (\textbackslash g -> g FC) \ap (pure (.).((.).f) \ap p) \ap q \ap r} \\
+    =\ & \texttt{pure }\underbrace{\texttt{(\textbackslash g -> g FC).((.).((.).f))}}_{\beta}\texttt{ \ap p \ap q \ap r} & \equi[8]
+\end{align*}
+
+Since both \texttt{a} and \texttt{b} are now in the same `shape', the remaining work is to prove equivalence of the two functions $\alpha$ and $\beta$.
+\begin{align*}
+    \texttt{flip const} =\ & (\lambda fpq \to f\ q\ p)(\lambda pq \to p) \\
+    =\ & \lambda pq \to (\lambda pq \to p)\ q\ p \\
+    =\ & \lambda pq \to q \\
+    \alpha =\ & (\lambda pq \to p) \cdot f \\
+    =\ & \lambda x \to (\lambda p q \to p)(f\ x) \\
+    =\ & \lambda x \to (\lambda q \to f\ x) \\
+    =\ & \lambda xy \to f\ x \\
+    =\ & \lambda xyz \to f\ x\ z \\
+    \beta =\ & (\lambda g \to g\ (\lambda pq \to q)) \cdot ((\cdot) \cdot ((\cdot) \cdot f)) \\
+    =\ & \lambda x \to (\lambda g \to g\ (\lambda pq \to q))(((\cdot) \cdot ((\cdot) \cdot f))\ x) \\
+    =\ & \lambda x \to (((\cdot) \cdot ((\cdot) \cdot f))\ x)(\lambda pq \to q) \\
+    =\ & \lambda x \to ((\cdot) ((((\cdot) \cdot f))\ x))(\lambda pq \to q) \\
+    =\ & \lambda x \to ((\cdot)((\cdot)(f\ x)))(\lambda pq \to q) \\
+    =\ & \lambda x \to ((f\ x) \cdot) \cdot (\lambda pq \to q) \\
+    =\ & \lambda xy \to ((f\ x) \cdot) ((\lambda pq \to q)\ y) \\
+    =\ & \lambda xy \to (f\ x) \cdot (\lambda q \to q) & \text(2)\\
+    =\ & \lambda xyz \to f\ x\ z
+\end{align*}
+\begin{enumerate}[(1)]
+    \itemsep0em
+    \item for brevity
+    \item $f \cdot id = f$
+\end{enumerate}
+
+Since $\alpha = \beta$, it follows that $\texttt{a} = \texttt{b}$, hence the reduction is sound. By equivalence of \texttt{\apr} and \texttt{\multr}, the same argument can be made for the latter case.
+
+\subsection{Reduction of \texorpdfstring{\texttt{\mult}}{<mult>}}
+Intuitively, this case moves the `pair' from one argument to the other.
+The goal is to show that reducing from $\texttt{a} = \texttt{lift2(f}_\texttt{u}\texttt{, p \mult q, r)}$ to $\texttt{b} = \texttt{lift2(g}_\texttt{u}\texttt{, p, q \mult r)}$ is sound.
+\begin{align*}
+    \texttt{a} =\ & \texttt{pure f \ap (p \mult q) \ap r} & \equi[12] \\
+    =\ & \texttt{pure f \ap (pure (,) \ap p \ap q) \ap r} & \equi[11] \\
+    =\ & \texttt{pure (.) \ap pure f \ap (pure (,) \ap p) \ap q \ap r} & \equi[4] \\
+    =\ & \texttt{pure (f.) \ap (pure (,) \ap p) \ap q \ap r} & \equi[3] \\
+    =\ & \texttt{pure }\underbrace{\texttt{(f.).(,)}}_{\alpha}\texttt{ \ap p \ap q \ap r} & \equi[7] \\
+    \texttt{b} =\ & \texttt{pure g \ap p \ap (q \mult r)} & \equi[12] \\
+    =\ & \texttt{pure g \ap p \ap (pure (,) \ap q \ap r)} & \equi[11] \\
+    =\ & \texttt{pure (.) \ap (pure g \ap p) \ap (pure (,) \ap q) \ap r} & \equi[4] \\
+    =\ & \texttt{pure (.).g \ap p \ap (pure (,) \ap q) \ap r} & \equi[7] \\
+    =\ & \texttt{pure (.) \ap (pure (.).g \ap p) \ap pure (,) \ap q \ap r} & \equi[4] \\
+    =\ & \texttt{pure (.).((.).g) \ap p \ap pure (,) \ap q \ap r} & \equi[7] \\
+    % =\ & \texttt{pure (\textbackslash f -> f (,)) \ap (pure (.).((.).g) \ap p) \ap q \ap r} \\
+    =\ & \texttt{pure }\underbrace{\texttt{(\textbackslash f -> f (,)).((.).((.).g))}}_{\beta}\texttt{ \ap p \ap q \ap r} & \equi[8]
+\end{align*}
+
+Similar to before, $\texttt{a}$ and $\texttt{b}$ are in the same form.
+However, the goal is not to show that the two functions $\alpha$ and $\beta$ are exactly equivalent, but rather show that a trivial transformation of $\texttt{f}$ can result in $\texttt{g}$.
+This can be done by introducing an intermediate function $h$, where $f\ (x, y)\ z = h\ x\ y\ z = g\ x\ (y, z)$.
+\begin{align*}
+    \alpha =\ & (f \cdot) \cdot (,) \\
+    =\ & \lambda x \to f \cdot (x, ) \\
+    =\ & \lambda xy \to f\ (x, y) \\
+    =\ & \lambda xyz \to f\ (x, y)\ z \\
+    \beta =\ & (\lambda f \to f\ (,)) \cdot ((\cdot) \cdot ((\cdot) \cdot g)) \\
+    =\ & \lambda x \to (\lambda f \to f\ (,))(((\cdot) \cdot ((\cdot) \cdot g))\ x) \\
+    =\ & \lambda x \to (\lambda f \to f\ (,))(((\cdot) ((\cdot) \cdot g)\ x)) \\
+    =\ & \lambda x \to (\lambda f \to f\ (,))((\cdot) ((\cdot)\ (g\ x))) \\
+    =\ & \lambda x \to ((\cdot)\ (g\ x)) \cdot (,) \\
+    =\ & \lambda xy \to (g\ x) \cdot (y,) \\
+    =\ & \lambda xyz \to g\ x\ (y, z)
+\end{align*}
+
+This result demonstrates that $g$ can be constructed to wrap $f$ by taking in two arguments, with the second being a tuple.
+The second argument can then be destructured, forming a tuple with the first argument and the first component of the tuple, and passing it into $f$.
+
+\subsection{Reduction of \texttt{\fmap}}
+The goal is to show the soundness of a reduction from $\texttt{a} = \texttt{lift2(f}_\texttt{u}\texttt{, g \fmap p, q)}$ to $\texttt{b} = \texttt{lift2(h}_\texttt{u}\texttt{, p, q)}$.
+\begin{align*}
+    \texttt{a} =\ & \texttt{pure f \ap (g \fmap p) \ap q} & \equi[12] \\
+    =\ & \texttt{pure f \ap (pure g \ap q)} & \equi[5] \\
+    =\ & \texttt{pure f.g \ap p \ap q} & \equi[7] \\
+    =\ & \texttt{lift2((f.g)}_\texttt{u}\texttt{, p, q)} & \equi[12] \\
+    =\ & \texttt{b} & \text{where $\texttt{h} = \texttt{f.g}$}
+\end{align*}
+
+The behaviour of $\texttt{h}$ is simply $\texttt{f}$ with $\texttt{g}$ applied to the first argument (when uncurried);
+\begin{align*}
+    f \cdot g =\ & \lambda x \to f\ (g\ x) \\
+    =\ & \lambda xy \to f\ (g\ x)\ y
+\end{align*}
+
+This result also provides validity for reduction steps on the derived combinators, \texttt{\constfmapl}, \texttt{\constfmapr}, and \texttt{\pamf}.
+The former two can be reduced by specifying \texttt{g} to be a constant function.
+Alongside the case for \texttt{\mult}, this also provides validity for reduction cases on \texttt{\ap} and \texttt{\pa}.
+
+\subsection{Reduction of \texttt{\ap} and \texttt{\pa}}
+Using the previous results for \texttt{\mult} and \texttt{\fmap}, it is possible to construct reduction steps for \texttt{\ap} by equivalence \equi[14].
+Additionally, using \equi[1], it is also possible to create a similar rule for \texttt{\pa}.
+
+Rather than showing a direct conversion between two \texttt{lift2}s, the goal is to verify that $\texttt{a} = \texttt{p \pa q}$ is equivalent to $\texttt{b} = \texttt{(\textbackslash (p,q) -> q p) \fmap (p \mult q)}$.
+Verifying this result allows for bootstrapping off of the aforementioned results.
+\begin{align*}
+    \texttt{a} =\ & \texttt{pure (flip (\$)) \ap p \ap q} & \equi[1] \\
+    =\ & \texttt{pure (\textbackslash (p,q) -> p q) \ap (pure (flip (\$)) \mult p) \ap q} & \equi[14] \\
+    =\ & \texttt{pure (\textbackslash (p,q) -> p q) \ap} & \equi[9] \\
+    & \texttt{(pure (,) \ap pure (flip (\$)) \ap p) \ap q}  \\
+    =\ & \texttt{pure (\textbackslash (p,q) -> p q) \ap} & \equi[3] \\
+    & \texttt{(pure (,)(flip (\$)) \ap p) \ap q} \\
+    =\ & \texttt{pure }\underbrace{\texttt{(\textbackslash (p,q) -> p q).((,)(flip (\$)))}}_{\alpha}\texttt{ \ap p \ap q} & \equi[7] \\
+    \texttt{b} =\ & \texttt{pure (\textbackslash (p,q) -> q p) \ap (p \mult q)} & \equi[5] \\
+    =\ & \texttt{pure (\textbackslash (p,q) -> q p) \ap (pure (,) \ap p \ap q)} & \equi[9] \\
+    =\ & \texttt{pure (.)(\textbackslash (p,q) -> q p) \ap (pure (,) \ap p) \ap q} & \text{({\sc\romannumeral 3}, {\sc\romannumeral 4})} \\
+    =\ & \texttt{pure }\underbrace{\texttt{((.)(\textbackslash (p,q) -> q p)).(,)}}_{\beta}\texttt{ \ap p \ap q} & \equi[7] \\
+    \alpha =\ & (\lambda (p, q) \to p\ q) \cdot ((,) (\lambda xy \to y\ x)) \\
+    =\ & \lambda x \to (\lambda (p, q) \to p\ q) ((\lambda xy \to y\ x), x) \\
+    =\ & \lambda x \to (\lambda xy \to y\ x)\ x \\
+    =\ & \lambda x \to (\lambda y \to y\ x) \\
+    =\ & \lambda xy \to y\ x \\
+    \beta =\ &((\cdot) (\lambda (p, q) \to q\ p)) \cdot (,) \\
+    =\ & \lambda x \to (\lambda (p, q) \to q\ p) \cdot (x, ) \\
+    =\ & \lambda xy \to (\lambda (p, q) \to q\ p) (x, y) \\
+    =\ & \lambda xy \to y\ x
+\end{align*}
+
+As before, since $\alpha = \beta$, it follows that $\texttt{a} = \texttt{b}$, hence the two forms are equivalent.
+However, since it is now in a form $\texttt{f \fmap (p \mult q)}$, it can be reduced using existing reduction rules.
+Additionally, this also permits for further bootstrapping for reducing the \texttt{<:>} case.

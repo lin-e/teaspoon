@@ -1,0 +1,150 @@
+\section{Language Extensions}
+\label{sec:lang_ext}
+
+\def\mplw{0.49\textwidth}
+\def\mprw{0.49\textwidth}
+
+As part of the preprocessor, a number of languages features are implemented that augment the existing TypeScript grammar, most of which are implemented to provide `syntactic sugar' for writing parser combinators.
+This section introduces these additions alongside some context surrounding usage.
+Note that for all the subsequent code snippets in this section, the snippet on the left refers to the augmented grammar (\texttt{.tsp}) and the snippet on the right refers to the transpiled TypeScript (\texttt{.ts}).
+
+\subsection{Declarations}
+Two new lexical declarations have been added, namely \texttt{val} and \texttt{lazy}.
+The former is simply an alias for \texttt{const}, with no additional functionality.
+On the other hand, \texttt{lazy} allows for rudimentary laziness, thus allowing for parsers to be recursively defined - required for supporting recursive syntax.
+This can be seen in the example below, where \texttt{p} references itself.
+Without the additional wrapping for laziness, the code would be semantically invalid as a variable would be used prior to its assignment.
+
+\begin{center}
+    \begin{minipage}[t]{\mplw}
+        \begin{minted}{teaspoon_lex.py:TeaspoonLexer -x}
+            lazy p = p;
+            val q = x;
+        \end{minted}
+    \end{minipage}
+    \hfill
+    \tikzmark{lt_d}
+    \hfill
+    \begin{minipage}[t]{\mprw}
+        \begin{minted}{typescript}
+            const p = lazy(() => p);
+            const q = x;
+        \end{minted}
+    \end{minipage}
+\end{center}
+\tikz[remember picture] \node[overlay] at ($(pic cs:lt_d) + (-0.5, -0.25)$) {$\leadsto$};
+
+\subsection{User-Defined Operators}
+In order to provide an intuitively legible syntax for writing parsers, user-defined operators have been implemented.
+Note that the snippet below does not provide usage for all implemented operators, but rather demonstrates how they are supported.
+In the example, \texttt{p} is an example of how a simple combinator is written into a function call.
+The left-associative property of combinators is also respected, as shown in \texttt{q}, with support for parentheses shown in \texttt{s}.
+Similarly, the lower precedence of the choice combinator (\texttt{\choice}) is shown in \texttt{r}.
+Finally, arbitrary user-defined functions can be supported, as shown in \texttt{t} - this addition allows for combinators to be defined beyond what is provided by the library, without requiring changes to the preprocessor.
+
+\begin{center}
+    \begin{minipage}[t]{\mplw}
+        \begin{minted}{teaspoon_lex.py:TeaspoonLexer -x}
+            let p = a <~> b;
+            let q = a *> b *> c;
+            let r =
+              a <*> b <|> c <*> d;
+            let s =
+              a <**> (pf <* b) <*> c;
+            let t = a <xyz> b;
+        \end{minted}
+    \end{minipage}
+    \hfill
+    \tikzmark{lt_udo}
+    \hfill
+    \begin{minipage}[t]{\mprw}
+        \begin{minted}{typescript}
+            let p = mult(q, r);
+            let q = apR(apR(a, b), c);
+            let r =
+              choice(ap(a, b), ap(c, d));
+            let s =
+              ap(pa(a, apL(pf, b)), c);
+            let t = xyz(a, b);
+        \end{minted}
+    \end{minipage}
+\end{center}
+\tikz[remember picture] \node[overlay] at ($(pic cs:lt_udo) + (-0.5, -1.375)$) {$\leadsto$};
+
+\subsection{Implicit Conversions}
+In order to reduce the amount of conversion the user has to manually perform, implicit conversions can be enabled in the pipeline.
+With this enabled, a use of a string, character, or regular expression literal in place of where a parser is expected will cause the preprocessor to automatically apply a conversion (wrapping the function with \texttt{chr}, \texttt{str}, or \texttt{re}, depending on the type of the literal).
+This addition provides some ability to have `overloaded strings', as described by Willis \& Wu (2021) \cite{willis21}.
+
+\begin{center}
+    \begin{minipage}[t]{\mplw}
+        \begin{minted}{teaspoon_lex.py:TeaspoonLexer -x}
+            let p = f <*> 'a' <*> /b/i;
+            let q = 'c' $> 'd';
+            let r = attempt('ef');
+        \end{minted}
+    \end{minipage}
+    \hfill
+    \tikzmark{lt_ic}
+    \hfill
+    \begin{minipage}[t]{\mprw}
+        \begin{minted}{typescript}
+        let p =
+          p(ap(f, chr('a')), re(/b/i));
+        let q =
+          constFmapR(chr('c'), 'd');
+        let r = attempt(str('ef'));
+        \end{minted}
+    \end{minipage}
+\end{center}
+\tikz[remember picture] \node[overlay] at ($(pic cs:lt_ic) + (-0.5, -0.85)$) {$\leadsto$};
+
+\subsection{`Macros'}
+\label{ssec:inline}
+One limitation of the preprocessor, when performing analysis, is observing the behaviour of more `complex' functions or declarations.
+While it may be feasible to inline some variable declarations, if they are known to be immutable, it can often negatively impact the readability of the produced code.
+It may not be desirable to inline a complex declaration.
+On the other hand, it is likely difficult to analyse an arbitrary function, even if the underlying semantics are fairly simple.
+For example, consider the function \texttt{between}, provided in the library.
+The invocation \texttt{between(l, p, r)} simply denotes \texttt{l \apr p \apl r} - in this case, the function is simply shorthand.
+For these cases, the user should be able to specify when a replacement can be safely performed, via the use of the \texttt{inline} `declaration'.
+
+\begin{center}
+    \begin{minipage}[t]{\mplw}
+        \begin{minted}{teaspoon_lex.py:TeaspoonLexer -x}
+            inline paap(x, y, z) =
+              x <**> y <*> z;
+            inline o = add <$ chr('+');
+            inline add = (x: number) =>
+              (y: number) => x + y;
+
+            let r = paap(a, o, b);
+        \end{minted}
+    \end{minipage}
+    \hfill
+    \tikzmark{lt_m}
+    \hfill
+    \begin{minipage}[t]{\mprw}
+        \begin{minted}{typescript}
+            let r = ap(pa(a,
+              constFmapL(
+                (x: number) =>
+                  (y: number) => x + y,
+                chr('+'))
+            ), b);
+        \end{minted}
+    \end{minipage}
+\end{center}
+\tikz[remember picture] \node[overlay] at ($(pic cs:lt_m) + (-0.5, -1.375)$) {$\leadsto$};
+
+The snippet demonstrates how a substitution is performed, for substitutions with and without parameters.
+Notice that the substitution is not restricted to only parsers, as seen with \texttt{add}.
+It is important to note that this does not perform a na\"ive text replacement, but rather recursively splices in parts of the AST.
+By modifying the AST, further analysis can be performed in subsequent stages.
+For example, rather than seeing \texttt{r} as being an arbitrary function call, which may have behaviour that cannot trivially be inspected, it is seen as a combinator tree which can be analysed further.
+The ability to provide these `hints' to the preprocessor is beneficial to the efficacy of optimisations that analyse combinator trees.
+
+Consider the earlier example of \texttt{between}.
+Note that \texttt{p = between(l, a, r)} and \texttt{q = between(l, b, r)} follow a similar form.
+However, without knowing how \texttt{between} is defined, it is not trivial to deduce that both \texttt{p} and \texttt{q} share a common prefix.
+On the other hand, if both were expanded based on the inline definition, it is trivial to see that both parsers have a common prefix and suffix of \texttt{l} and \texttt{r}, respectively.

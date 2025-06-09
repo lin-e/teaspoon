@@ -1,0 +1,15 @@
+\chapter{Parsing Library}
+\label{chap:library}
+
+This chapter discusses the implementation of the underlying TypeScript library, \textit{Teaspoon}, beginning with the original port from \textit{Parsec} (Haskell).
+Following the port, the library features are discussed, followed by any modifications made for performance or usability.
+
+\input{parsing_library/port.tex}
+\input{parsing_library/features.tex}
+\input{parsing_library/perf.tex}
+
+\section*{Summary}
+This chapter explored the underlying design decisions in the parsing library, as well as how fundamental differences between Haskell and TypeScript prevent a one-to-one port of \textit{Parsec} from being sufficient.
+These differences include language features such as laziness, mutability, as well as the limitation of type inference.
+Throughout the sections, some examples of how the high-level interface of the library may be utilised are shown - however they differ drastically from the `neat' operators typically associated with parser combinators.
+In order to support these operators without directly modifying the TypeScript compiler, a preprocessor (described in \autoref{chap:preprocessor}) will be required.

@@ -1,0 +1,73 @@
+\section{Pipeline Architecture}
+\label{sec:pipeline_arch}
+
+This section aims to provide a high-level overview of the main processing pipeline, from ingesting the source file, to optimising the program, and back to a source file.
+As shown in \autoref{fig:pipeline_diagram}, it is important to note that the optimiser itself consists of multiple stages, which can be partitioned into one of three categories; before the conversion to the IR, while the AST is in IR form, and after the conversion from the IR.
+The bulk of the optimisation is performed in the IR stage, whereas the steps before and after are primarily to support additional language features.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[every node/.style={execute at end node=\vphantom{bg}}]
+        \begin{scope}[shift={(0, 0)}]
+            \node at (0, 0) {\texttt{F[.tsp] -> AST}};
+            \node at (0, 1) {\tsext Parser};
+            \draw (-2, 0.5) -- (2, 0.5) -- (2, -0.5) -- (-2, -0.5) -- cycle;
+        \end{scope}
+        \begin{scope}[shift={(5, 0)}]
+            \node at (0, 0) {\texttt{AST -> AST}};
+            \node at (0, 1) {Optimiser};
+            \draw[dotted] (-2, 0.5) -- (2, 0.5) -- (2, -0.5) -- (-2, -0.5) -- cycle;
+        \end{scope}
+        \begin{scope}[shift={(10, 0)}]
+            \node at (0, 0) {\texttt{AST -> F[.ts]}};
+            \node at (0, 1) {AST Printer};
+            \draw (-2, 0.5) -- (2, 0.5) -- (2, -0.5) -- (-2, -0.5) -- cycle;
+        \end{scope}
+        \begin{scope}[shift={(0, -2)}]
+            \node at (0, 0) {\texttt{AST -> AST}};
+            \node at (0, -1) {Inlining / Implicits};
+            \draw (-1.5, 0.5) -- (1.5, 0.5) -- (1.5, -0.5) -- (-1.5, -0.5) -- cycle;
+        \end{scope}
+        \begin{scope}[shift={(5, -2)}]
+            \node at (0, 0) {\texttt{IR -> IR}};
+            \node at (0, -1) {Parser Optimisation};
+            \draw (-1.5, 0.5) -- (1.5, 0.5) -- (1.5, -0.5) -- (-1.5, -0.5) -- cycle;
+        \end{scope}
+        \begin{scope}[shift={(10, -2)}]
+            \node at (0, 0) {\texttt{AST -> AST}};
+            \node at (0, -1) {Language Extension};
+            \draw (-1.5, 0.5) -- (1.5, 0.5) -- (1.5, -0.5) -- (-1.5, -0.5) -- cycle;
+        \end{scope}
+        \draw
+        (2, 0) edge[->] (3, 0)
+        (7, 0) edge[->] (8, 0)
+        (1.5, -2) edge[->, above] node{\tiny \texttt{AST -> IR}} (3.5, -2)
+        (6.5, -2) edge[->, above] node{\tiny \texttt{IR -> AST}} (8.5, -2);
+
+        \draw[ultra thick, decorate, decoration={calligraphic brace, amplitude=7pt, raise=-2pt}] (-1.5, -1) -- (11.5, -1);
+    \end{tikzpicture}
+    \vspace{-0.5\baselineskip}
+    \caption{Simplified view of the main stages within the preprocessor pipeline, \texttt{F[.x]} denotes a file with extension \texttt{.x}}
+    \label{fig:pipeline_diagram}
+\end{figure}
+
+The primary entry point for the preprocessor uses \textit{scopt} \cite{scopt} to parse command-line options (see \autoref{tab:cli_opt}), which allows for certain optimisation stages to be enabled / disabled.
+Once a file is read in, with the path specified by an argument, the raw input is then parsed by a \tsext parser.
+Note that \tsext refers to TypeScript with the additional language features augmented onto the existing grammar (listed in \autoref{sec:lang_ext}).
+
+Once the input file has been successfully parsed, the AST is fed through the optimisation pipeline, detailed further in \autoref{chap:oaa}.
+Each `stage', excluding language extensions and IR conversions, is either enabled or disabled, depending on the corresponding configuration option.
+Every pipeline stage extends the \texttt{PipelineStage} trait, which provides default AST traversal properties, allowing for a stage to only implement the desired functionality on a subset of the AST, but maintaining the guarantee that everything will be traversed.
+The latter is important to ensure that certain assumptions can be made about the AST being fed into subsequent stages.
+For example, it is generally safe to assume that any \texttt{Expression}s after the first conversion stage will be \texttt{IR} nodes (detailed in \autoref{sec:ir}).
+On overriding a \texttt{PipelineStage}, care should be taken to maintain the behaviour from the superclass (unless explicitly not required) in order to main the traversal properties.
+
+Each of the pipeline stages can access a shared mutable state.
+However, pipeline execution typically implies an order of execution: stages cannot simply jump forward in the pipeline and back despite this functionality possibly being beneficial.
+For example, the preprocessor may need to report an error to the user and include TypeScript code.
+However, without the ability to use later pipeline stages (namely a conversion from the IR to the AST), the functionality for generating code will have to be duplicated.
+In order to prevent this, the mutable state can be `locked', thus preventing any changes.
+
+The final stage of the pipeline converts the AST back into a raw string by printing out the AST recursively.
+Note that this maintains no formatting, such as indent levels - however, the syntax is now fully valid TypeScript.
+Optionally, this raw file can then be passed through a formatter, such as \textit{Prettier} \cite{prettier}.

@@ -1,0 +1,55 @@
+\section{Porting from Parsec}
+\label{sec:port}
+
+It is important to first acknowledge that a significant amount of the underlying implementation is built off of the work by Hutton \& Meijer (1999) \cite{hutton99}, as well as the later work on \textit{Parsec} by Leijen \& Meijer (2001) \cite{leijen01}.
+However, a number of considerations must be made as code is essentially being ported from an implementation in Haskell to TypeScript.
+
+The internal state contains both the position as well as the remaining string, similar to the implementation in Haskell.
+Similarly, the consumer-based approach was also taken, where both the success of the parse and consumption is tracked - closely related to the four tags proposed by Partridge \& Wright (1996) \cite{partridge96}.
+In TypeScript, consumption is simply a flag that is set in a \texttt{Result<A>}, which also contains a reply, as shown in \autoref{fig:4tags}.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.525\textwidth}
+        \begin{minted}{haskell}
+            data Consumed a = Consumed (Reply a)
+                            | Empty (Reply a)
+            data Reply a    = Ok a State Msg
+                            | Err Msg
+        \end{minted}
+    \end{minipage}
+    \hfill
+    $\leadsto$
+    \hfill
+    \begin{minipage}{0.35\textwidth}
+        \begin{minted}{typescript}
+            type Result<A> = {
+                consumed: boolean;
+                reply: Ok<A> | Err;
+            };
+        \end{minted}
+    \end{minipage}
+    \caption{Left: four `tags' from \textit{Parsec} (Haskell), right: representation of the tags in \textit{Teaspoon} (TypeScript)}
+    \label{fig:4tags}
+\end{figure}
+
+However, a significant language feature present in Haskell but not TypeScript is the presence of lazy evaluation.
+An incomplete implementation of laziness, which does not support sharing (preventing repeated evaluations), can be implemented by a function which takes in a `thunk' (a function which can be evaluated later to delay the computation).
+This `thunk' is then only evaluated once the lazy parser is called, thus allowing for values to be used prior to an assignment - a critical feature for recursively defined grammars.
+
+\begin{capminted}
+    \begin{minted}{typescript}
+        function lazy<A>(p: () => Parser<A>): Parser<A> {
+            return (s: State) => p()(s);
+        }
+
+        let p = lazy(() => q); // 'Using' q before it is assigned
+        let q = pure(true);    // Actual definition of q
+    \end{minted}
+    \vspace{-0.5\baselineskip}
+    \caption{Rudimentary implementation of laziness (delayed evaluation only)}
+    \label{lst:old_lazy}
+\end{capminted}
+
+While this port creates a useful starting point, the performance leaves much to be desired.
+Not only are some features implemented in a way that is not natively `supported' (not as well optimised) in TypeScript, some features benefit from a less `pure' implementation.

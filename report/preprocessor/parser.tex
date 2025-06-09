@@ -1,0 +1,18 @@
+\section{\texorpdfstring{\tsext}{TypeScript<STAR>} Parser}
+\label{sec:ts_parser}
+The first stage of the processing pipeline involves parsing the raw input file, which contains a valid (both syntactic and semantic) \tsext program.
+Note that the remainder of the pipeline assumes semantic correctness, especially with types, as full type verification lies outside the scope of the preprocessor.
+
+The parser within the preprocessor targets ECMAScript 2015 \cite{es2015spec}, augmented with TypeScript-specific additions from early 2016 \cite{tsls}.
+Certain existing language features have been excluded, such as (but not limited to) decorators and ambient declarations.
+\textit{Parsley} \cite{willis18} for Scala is used for parsing the raw input into an abstract syntax tree (AST).
+The use of a parser combinator library not only seemed natural due to the nature of this library and preprocessor, but also provided numerous benefits, such as the single-pass nature of the lexing, parsing, and construction stages.
+One disadvantage of using parser combinators is the lack of error recovery - however, as the preprocessor typically expects correct, well-formed code, this is not a major concern.
+
+Note that the AST contains additional language features not present in TypeScript.
+These additions are transformed in subsequent pipeline stages into other AST nodes, which represent valid TypeScript syntax.
+In order to recover a valid TypeScript program at the end of the pipeline, each AST node requires a \texttt{print} function, which recursively converts the tree back into program code.
+At the end of the pipeline, this is called on a \texttt{Module} representing the entire program, which is then optionally passed into a code formatter.
+
+The entirety of the preprocessing pipeline, bar the formatter which exists externally, is implemented in Scala, in order to leverage its pattern matching abilities, as well as the portability of the JVM (Java Virtual Machine).
+The former allows for significantly simpler analysis over the AST, which is hugely beneficial for optimisations on a tree.

@@ -1,0 +1,61 @@
+\section{Comparison to Other Libraries}
+\label{sec:ts_compare}
+
+While it is important to consider the efficacy of the optimisations and the preprocessor itself, the performance and features of the underlying parsing library should also be analysed.
+Instead of comparing against parser generators and handwritten solutions as done by \textit{Chevrotain} \cite{chev}, the performance is only compared against \textit{ts-parsec} \cite{tsparsec} and \textit{parsimmon} \cite{parsimmon}, both of which are parser combinator libraries.
+
+\subsection{Feature Parity}
+The idea of feature parity, in terms of what is provided by the library, should be taken with a grain of salt as one of the major draws of parser combinators is the ability for the user to define derived combinators.
+However, it can still be beneficial to consider the differences in what is provided directly by the library.
+
+All three libraries support the use of regular expressions for performing parsing, which can often perform better than concatenating a collection of individual string parsers.
+However, \textit{Teaspoon} and \textit{parsimmon} provide this functionality as a parsing primitive, whereas \textit{ts-parsec} requires this for the lexing stage - this step is not required by the former two and can often lead to degraded performance (observed in \autoref{ssec:ts_perf}).
+
+Both \textit{parsimmon} and \textit{ts-parsec} perform backtracking by default, whereas \textit{Teaspoon} maintains the semantics of the \textit{Parsec} family.
+However, \textit{Teaspoon} can achieve the same semantics by wrapping alternatives in \texttt{attempt}, whereas neither of the other libraries can obtain \textit{Parsec} semantics as neither provide operators to prevent backtracking.
+This functionality can be desirable to allow for code portability, as \textit{Attoparsec} (Haskell) provides these semantics if required, despite always backtracking by default.
+Additionally, the lack of \texttt{cut} (to stop backtracking) prevents these libraries from being optimised to avoid unnecessary backtracking (thus being unsuitable for practical use).
+
+However, \textit{parsimmon} and \textit{ts-parsec} both provide a number of niceties, such as commonly used primitive parsers such as \texttt{digit}, \texttt{whitespace}, and similar, alongside predefined functions for repetition or optional parsers.
+On the other hand, these are quite trivial to implement with the primitives and combinators provided in \textit{Teaspoon}.
+
+\subsection{Performance}
+\label{ssec:ts_perf}
+
+In order to create as even a comparison as possible, the goal was to create a parser for JSON, with the structure of all the parsers being as close as possible in order to eliminate variances from certain library features.
+JSON objects of various lengths are then generated in order to test scaling.
+For each generated object, 55 runs are performed, with the first 5 being discarded.
+Within each run, the object is parsed 5 times.
+
+A JSON parser was chosen for two main reasons, the first of which is the lack of left recursion and the simplicity of the grammar (alongside its ability to use various combinators).
+While the ability to address left-recursive productions was a key feature of the preprocessor, it required features from the library that may be too specific.
+Despite all three libraries being able to handle left recursion in one way or another, the implementations could have become quite different, thus leading to differences in the testing methodology.
+This was unacceptable, as the primary purpose of this experiment was to determine the relative performance of combinators.
+The second reason for using JSON was the ability to generate large amounts of realistic (thus demonstrating real-world application) data with tools such as \textit{json-generator}\footnote{\url{https://json-generator.com/}}.
+
+Note that the end-to-end flow (which would reconstruct a JSON object) is not measured.
+This decision was made to prevent adding a fairly fixed time operation, which could result in the relative performance between the libraries being skewed.
+
+\begin{figure}[H]
+    \centering
+    \import{figs}{figs/json_bench.pgf}
+    \vspace{-0.5\baselineskip}
+    \caption{Average execution time of parsing JSON files of various sizes on TypeScript combinator libraries}
+    \label{fig:ts_compare_json}
+\end{figure}
+
+While \textit{Teaspoon} and \textit{parsimmon} have extremely similar performance, \textit{ts-parsec} falls behind by a factor of $\approx 7 \times$ to complete a parse.
+This is most likely due to the lexing stage, which utilises regular expressions to obtain tokens.
+As seen in \autoref{fig:ts_compare_json}, when the lexing stage is pre-computed (\texttt{ts-parsec\_c}) the performance is notably better, however it still performs measurably worse than the others.
+An interesting observation is the significant decrease in variance when the lexing stage is excluded.
+Furthermore, the variance seems to be notably higher from using regular expressions.
+
+On the other hand, \textit{Teaspoon} and \textit{parsimmon} are almost close enough to be considered to be within a margin of error of each other, however, the former performs the parse slightly faster, by a very narrow margin.
+Comparing the two libraries, both have fairly similar underlying implementations for the combinators, with the primary difference being the former's use of parsers as functions and the latter's use of parsers as objects.
+However, there are fundamental differences in how backtracking is performed: the former requires the use of \texttt{attempt} to perform it explicitly, whereas the latter performs backtracking by default.
+In the case of JSON, where there is very little ambiguity, the impact is negligible.
+
+However, it is important to acknowledge that the testing methodology has slight flaws.
+For example, this only tests performance on the overall grammar; it does not account for the performance of each combinator.
+This could skew the results if a computationally expensive combinator is not utilised much in a given grammar.
+Another source of unfairness can stem from a lack of feature parity, such as \textit{ts-parsec}'s use of an expensive lexing stage or how the state is tracked differently.

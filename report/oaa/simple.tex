@@ -1,0 +1,22 @@
+\section{Simple Optimisations}
+\label{sec:simple_opt}
+
+\subsection{Choice Reduction}
+\label{ssec:choice_reduce}
+
+A common pattern in parsers and grammars are sequences of alternatives, or disjunctions.
+Since choice (\texttt{\choice}) is an associative operator, it can often be useful to treat a tree of alternatives as a sequence, which can be reconstructed in a fully left-associative manner.
+Note that the order should generally be maintained, as it is not a commutative operator.
+
+While this property is primarily used in subsequent optimisations, it can enable a simple optimisation - removing duplicate disjunctions.
+For example, if a parser was \texttt{p \choice q \choice p}, it could be simply reduced to \texttt{p \choice q}.
+However, by trimming down disjunctions, it reduces the amount of processing required in subsequent steps, most of which rely on dealing with sequences of disjunctions.
+
+\subsection{Parser Law Optimisation}
+\label{ssec:parser_law}
+
+In order to simplify the parsers further, before more complex optimisations are applied, basic destructive transformations can be performed.
+Note that this step does not apply all optimisation rules, even if it may allow for further optimisation - it only makes changes that will reduce the size of the parser.
+Consider the size of the parser as the number of nodes in the combinator tree.
+Generally, this refers to the neutral, catch, and absorption laws of alternatives, applicatives, and monoidals (previously discussed in \autoref{ssec:alternative}).
+However, this step also applies the definition of `fmap' when applicable - by performing this reduction, it allows for subsequent preprocessing stages to easily determine whether something is a parser or not.

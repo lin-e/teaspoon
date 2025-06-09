@@ -1,0 +1,23 @@
+\chapter{Preprocessor}
+\label{chap:preprocessor}
+
+The TypeScript-based library introduced in \autoref{chap:library} contains an implementation of primitive parsers as well as commonly used combinators.
+However, in order to retain the intuitive syntax that users are likely to be accustomed to from other combinator libraries (in languages with user-defined operators), a preprocessing step is required.
+While the introduction of the preprocessor begins to blur the lines between parser combinators and parser generators, it provides an excellent opportunity to perform deeper inspection on parsers.
+
+This chapter begins by introducing the overall flow of data through the preprocessing pipeline.
+Throughout the sections, various design decisions and underlying implementation details are explored.
+This includes the parser for the augmented grammar, the representation used throughout the optimiser, as well as the aforementioned additions to TypeScript.
+
+\input{preprocessor/pipeline.tex}
+\input{preprocessor/parser.tex}
+\input{preprocessor/ir.tex}
+\input{preprocessor/language_ext.tex}
+
+\section*{Summary}
+This chapter demonstrates how the raw \tsext source code is transformed in order to support numerous language features, including the user-defined operators introduced in \autoref{chap:library}.
+The additions to TypeScript are also presented in the context of parser combinators and how a user may find them beneficial.
+A deeper dive was also made into the underlying design of the preprocessor itself as well as how the parsed structure is traversed and simplified for optimisations.
+
+However, the theory and implementation of the optimisation steps have been omitted for brevity.
+Instead, they are further explored in \autoref{chap:oaa}, which dives deeper into the techniques applied and how they transform the grammar.

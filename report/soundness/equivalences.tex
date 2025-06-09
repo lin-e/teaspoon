@@ -1,0 +1,41 @@
+\section{Equivalences}
+\label{sec:equivalences}
+Throughout these proofs, the following applicative equivalences are used;
+\begin{align*}
+    \texttt{p \pa q} & = \texttt{pure (flip (\$)) \ap p \ap q} & \equi \\
+    \texttt{p \ap pure f} & = \texttt{pure (\textbackslash g -> g f) \ap p} & \equi \\
+    \texttt{pure f \ap pure g} & = \texttt{pure (f g)} & \equi \\
+    \texttt{p \ap (q \ap r)} & = \texttt{pure (.) \ap p \ap q \ap r} & \equi \\
+    \texttt{f \fmap p} & = \texttt{pure f \ap p} & \equi \\
+    \texttt{p \ap (q <* r)} & = \texttt{p \ap q <* r} & \equi \\
+    \texttt{pure f \ap (pure g \ap p)} & = \texttt{pure f.g \ap p} & \equi \\
+    \texttt{pure f \ap p \ap pure g} & = \texttt{pure (\textbackslash h -> h g).f \ap p} & \equi \\
+    \texttt{p \apl q} & = \texttt{pure const \ap p \ap q} & \equi \\
+    \texttt{p \apr q} & = \texttt{pure (flip const) \ap p \ap q} & \equi \\
+    \texttt{p \mult q} & = \texttt{pure (,) \ap p \ap q} & \equi \\
+    \texttt{lift2(f}_\texttt{u}\texttt{, p, q)} & = \texttt{pure f \ap p \ap q} & \equi \\
+    \texttt{f \constfmapl p} & = \texttt{pure (const f) \ap p} & \equi \\
+    \texttt{p \ap q} & = \texttt{(\textbackslash (p,q) -> p q) \fmap (p \mult q)} & \equi \\
+    \texttt{flip (\$)} & = \lambda xg \to g\ x & \equi \\
+    \texttt{flip} & = \lambda fxy \to f\ y\ x & \equi\\
+    \texttt{const} & = \lambda pq \to p & \equi \\
+    (f \cdot g)\ x & = f\ (g\ x) & \equi
+\end{align*}
+\begin{enumerate}[(\sc i)]
+    \itemsep0em
+    \item definition of derived combinator `reverse ap' (\texttt{\pa})
+    \item interchange law
+    \item homomorphism law
+    \item composition law
+    \item definition of derived combinator `fmap' (\texttt{\fmap})
+    \item `reassociation' law, can be derived using \equi[9]
+    \item frequently used pattern, derived from \equi[3] and \equi[4]
+    \item frequently used pattern, derived from \equi[2], \equi[3], and \equi[4]
+    \item definition of derived combinator `ap left' or `then-discard' (\texttt{\apl})
+    \item definition of derived combinator `ap right' or `then' (\texttt{\apr})
+    \item construction of monoidal from applicative
+    \item definition of `lift2'
+    \item definition of derived combinator `const fmap' (\texttt{\constfmapl})
+    \item recovery of applicative from monoidal
+\end{enumerate}
+Equivalences \equi[2], \equi[3], \equi[4], \equi[11], and \equi[14] are noted by McBride \& Paterson (2008) \cite{mcbride08}

@@ -1,0 +1,14 @@
+\chapter{Soundness}
+\label{chap:soundness}
+
+In \autoref{sec:lrec_analysis}, a number of transformations were introduced in order to rewrite left-recursive productions into an iterative form, utilising \texttt{postfix}.
+This chapter dives deeper into these transformations to prove equivalences in the normalisation (\autoref{sec:sound_normalisation}) and reduction (\autoref{sec:sound_reductions}) steps, as well as verifying the correctness of rewriting a recursive production in an iterative manner (\autoref{sec:sound_rewrite}).
+
+\input{soundness/equivalences.tex}
+\input{soundness/rewriting.tex}
+\input{soundness/reduction.tex}
+\input{soundness/normalisation.tex}
+
+\section*{Summary}
+This chapter verifies the operations performed to support grammar refactoring, ensuring that the desired semantics are maintained throughout an arbitrary number of transformations.
+By validating the transformations via equivalences and structural induction over a single grammar rule, left recursion analysis and the subsequent refactoring are shown to be sound.
