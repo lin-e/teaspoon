@@ -29,8 +29,6 @@ The goal is to show that the normalisation of $\texttt{a} = \texttt{p \pa (f \co
 \end{align*}
 Note that the results for \texttt{b} and $\beta$ are reused from \autoref{ssec:reduce_discard} for brevity.
 Using these results, $\alpha = \beta$, therefore $\texttt{a} = \texttt{b}$ - hence the normalisation is sound.
-% It is important to note that \texttt{attempt}s are assumed to some extent, as the left-recursion analysis stage fundamentally alters the semantics of the parser.
-% This allows the rewriting rules to use full distributivity of applicatives over alternatives (compared to only right-distributivity).
 
 \subsection{Normalisation of \texorpdfstring{\texttt{f \fmap (p \mult q)}}{F<fmap>(P<mult>Q)}}
 The goal is to show that normalising $\texttt{a} = \texttt{f \fmap (p \mult q)}$ to $\texttt{b} = \texttt{lift2(g}_\texttt{u}\texttt{, p, q)}$ is sound.

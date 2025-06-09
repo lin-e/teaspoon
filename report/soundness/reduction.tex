@@ -6,7 +6,6 @@ This section proves the validity of these reductions, as well as describes the t
 
 \subsection{Reduction of \texttt{\apl}}
 \label{ssec:reduce_discard}
-% The goal is to show equivalence between $\texttt{a} = \texttt{lift2(f}_\texttt{u}\texttt{, p \apl q, r)}$ and $\texttt{b} = \texttt{lift2(f}_\texttt{u}\texttt{, p, q \apr r)}$.
 The goal is to show that $\texttt{a} = \texttt{lift2(f}_\texttt{u}\texttt{, p \apl q, r)}$ and $\texttt{b} = \texttt{lift2(f}_\texttt{u}\texttt{, p, q \apr r)}$ are equivalent, thus permitting the reduction.
 \begin{align*}
     \texttt{a} =\ & \texttt{pure f \ap (p \apl q) \ap r} & \equi[12] \\
@@ -21,7 +20,6 @@ The goal is to show that $\texttt{a} = \texttt{lift2(f}_\texttt{u}\texttt{, p \a
     =\ & \texttt{pure (.) \ap (pure (.).f \ap p) \ap pure FC \ap} & \equi[4] \\
     & \texttt{q \ap r} \\
     =\ & \texttt{pure (.).((.).f) \ap p \ap pure FC \ap q \ap r} & \equi[7] \\
-    % =\ & \texttt{pure (\textbackslash g -> g FC) \ap (pure (.).((.).f) \ap p) \ap q \ap r} \\
     =\ & \texttt{pure }\underbrace{\texttt{(\textbackslash g -> g FC).((.).((.).f))}}_{\beta}\texttt{ \ap p \ap q \ap r} & \equi[8]
 \end{align*}
 
@@ -68,7 +66,6 @@ The goal is to show that reducing from $\texttt{a} = \texttt{lift2(f}_\texttt{u}
     =\ & \texttt{pure (.).g \ap p \ap (pure (,) \ap q) \ap r} & \equi[7] \\
     =\ & \texttt{pure (.) \ap (pure (.).g \ap p) \ap pure (,) \ap q \ap r} & \equi[4] \\
     =\ & \texttt{pure (.).((.).g) \ap p \ap pure (,) \ap q \ap r} & \equi[7] \\
-    % =\ & \texttt{pure (\textbackslash f -> f (,)) \ap (pure (.).((.).g) \ap p) \ap q \ap r} \\
     =\ & \texttt{pure }\underbrace{\texttt{(\textbackslash f -> f (,)).((.).((.).g))}}_{\beta}\texttt{ \ap p \ap q \ap r} & \equi[8]
 \end{align*}
 

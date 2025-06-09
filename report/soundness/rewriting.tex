@@ -36,7 +36,6 @@ The goal in this case is to prove that \teal{$\texttt{p} = \texttt{postfix a (fl
     \texttt{p} =\ & \texttt{a \pa pure id} & \text{(1)} \\
     =\ & \texttt{flip (\$) \fmap a \ap pure id} & \equi[1] \\
     =\ & \texttt{pure (flip (\$)) \ap a \ap pure id} & \equi[5] \\
-    % =\ & \texttt{pure (\textbackslash f -> f id) \ap (pure (flip (\$)) \ap a)} \\
     =\ & \texttt{pure (\textbackslash f -> f id).(flip (\$)) \ap a} & \equi[8] \\
     =\ & \texttt{pure id \ap a} & \text{(2)} \\
     =\ & \texttt{a}
@@ -61,7 +60,6 @@ The goal in this case is to prove that \teal{$\texttt{postfix a (flip f \fmap q)
 
 \subsubsection*{Auxiliary Result on \texttt{postfix}}
 
-% In order to prove this property, the first step is to show that $\texttt{lift2(f}_\texttt{u}\texttt{, a, q)}$ is similar to $\texttt{lift2(f}_\texttt{u}\texttt{, r, q)}$ on $\mathcal{S} = (aq*)q$.
 In order to prove this, the first step is to show that $\texttt{postfix a (flip f \fmap q)}$ is similar to $\texttt{postfix r (flip f \fmap q)}$ on $\mathcal{S} = (aq*)q$.
 To formalise this, take the input as $\mathcal{S} = aq^nq = aq^{n + 1}$ (arbitrary $n \geq 0$), where $q^k$ denotes $k$ occurrences (successful parses) of $q$.
 
@@ -83,12 +81,10 @@ Let $\texttt{b} = \texttt{aq}^\texttt{k-1}\texttt{ \pa (pure (flip f) \ap q)}$, 
     =\ & \texttt{pure (.) \ap (pure (flip (\$)) \ap aq}^\texttt{k-1}\texttt{) \ap} & \equi[4] \\
     & \texttt{pure (flip f) \ap q} \\
     =\ & \texttt{pure (.).(flip (\$)) \ap aq}^\texttt{k-1}\texttt{ \ap pure (flip f) \ap q} & \equi[7] \\
-    % =\ & \texttt{pure (\textbackslash g -> g (flip f)) \ap (pure (.).(flip (\$)) \ap aq}^\texttt{k-1}\texttt{) \ap q} \\
     =\ & \texttt{pure }\overbrace{\texttt{(\textbackslash g -> g (flip f)).((pure (.).(flip (\$)))}}^{\beta}\texttt{ \ap} & \equi[8] \\
     & \texttt{aq}^\texttt{k-1}\texttt{ \ap q} \\
     =\ & \texttt{pure f \ap aq}^\texttt{k-1}\texttt{ \ap q} \\
     =\ & \texttt{lift2(f}_\texttt{u}\texttt{, p, q)} & \equi[12] \\
-    % \texttt{flip (\$)} =\ & \lambda xg \to g\ x \\
     \beta =\ & \lambda x \to (\lambda g \to g\ (\texttt{flip}\ f))(((\cdot) \cdot (\lambda xg \to g\ x))\ x) \\
     =\ & \lambda x \to (\lambda g \to g\ (\texttt{flip}\ f))((\lambda g \to g\ x) \cdot) \\
     =\ & \lambda x \to (\lambda g \to g\ x) \cdot (\texttt{flip}\ f) \\
@@ -114,10 +110,8 @@ The goal is to now show that $\texttt{c} = \texttt{postfix aq}^\texttt{k-1}\text
     & \texttt{pure (flip (.)) \ap Q \ap R} \\
     =\ & \texttt{pure (.).((.).(flip (\$))) \ap aq}^\texttt{k-1}\texttt{ \ap} & \equi[7] \\
     & \texttt{pure (flip (.)) \ap Q \ap R} \\
-    % =\ & \texttt{pure (\textbackslash h -> h (flip (.))) \ap (pure (.).((.).(flip (\$))) \ap aq}^\texttt{k-1}\texttt{) \ap Q \ap R} & \equi[2] \\
     =\ & \texttt{pure }\overbrace{\texttt{(\textbackslash h -> h (flip (.))).((.).((.).(flip (\$))))}}^{\gamma}\texttt{ \ap} & \equi[8] \\
     & \texttt{aq}^\texttt{k-1}\texttt{ \ap Q \ap R} \\
-    % =\ & \texttt{pure }\underbrace{\texttt{(.).((.).(flip (\$)))}}_{\gamma}\texttt{ \ap aq}^\texttt{k-1}\texttt{ \ap Q \ap R} \\
     \texttt{d} =\ & \texttt{aq}^\texttt{k}\texttt{ \pa R} & \text{(1)} \\
     =\ & \texttt{pure (flip (\$)) \ap aq}^\texttt{k}\texttt{ \ap R} & \equi[1] \\
     =\ & \texttt{pure (flip (\$)) \ap (aq}^\texttt{k-1}\texttt{ \pa Q) \ap R} & \text{(2)} \\
