@@ -1,0 +1,395 @@
+%%
+%% This is file `beamercolorthememetropolis.sty',
+%% generated with the docstrip utility.
+%%
+%% The original source files were:
+%%
+%% beamercolorthememetropolis.dtx  (with options: `package')
+%% ---------------------------------------------------------------------------
+%% Copyright 2015 Matthias Vogelgesang and the LaTeX community. A full list of
+%% contributors can be found at
+%% 
+%%     https://github.com/matze/mtheme/graphs/contributors
+%% 
+%% and the original template was based on the HSRM theme by Benjamin Weiss.
+%% 
+%% This work is licensed under a Creative Commons Attribution-ShareAlike 4.0
+%% International License (https://creativecommons.org/licenses/by-sa/4.0/).
+%% ---------------------------------------------------------------------------
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{beamercolorthememetropolis}[2017/01/23 Metropolis color theme]
+\RequirePackage{pgfopts}
+\pgfkeys{
+  /metropolis/color/block/.cd,
+    .is choice,
+    transparent/.code=\metropolis@block@transparent,
+    fill/.code=\metropolis@block@fill,
+}
+\pgfkeys{
+  /metropolis/color/background/.cd,
+    .is choice,
+    dark/.code=\metropolis@colors@dark,
+    light/.code=\metropolis@colors@light,
+}
+\newcommand{\metropolis@color@setdefaults}{
+  \pgfkeys{/metropolis/color/.cd,
+    background=light,
+    block=transparent,
+  }
+}
+\definecolor{mDarkBrown}{HTML}{604c38}
+\definecolor{mDarkTeal}{HTML}{23373b}
+\definecolor{mLightBrown}{HTML}{EB811B}
+\definecolor{mLightGreen}{HTML}{14B03D}
+
+\definecolor{eBG}{HTML}{212121} % MATERIAL GRAY 900
+\definecolor{materialRed50}{HTML}{FFEBEE}
+\definecolor{materialRed100}{HTML}{FFCDD2}
+\definecolor{materialRed200}{HTML}{EF9A9A}
+\definecolor{materialRed300}{HTML}{E57373}
+\definecolor{materialRed400}{HTML}{EF5350}
+\definecolor{materialRed500}{HTML}{F44336}
+\definecolor{materialRed600}{HTML}{E53935}
+\definecolor{materialRed700}{HTML}{D32F2F}
+\definecolor{materialRed800}{HTML}{C62828}
+\definecolor{materialRed900}{HTML}{B71C1C}
+\definecolor{materialRedA100}{HTML}{FF8A80}
+\definecolor{materialRedA200}{HTML}{FF5252}
+\definecolor{materialRedA400}{HTML}{FF1744}
+\definecolor{materialRedA700}{HTML}{D50000}
+\definecolor{materialPink50}{HTML}{FCE4EC}
+\definecolor{materialPink100}{HTML}{F8BBD0}
+\definecolor{materialPink200}{HTML}{F48FB1}
+\definecolor{materialPink300}{HTML}{F06292}
+\definecolor{materialPink400}{HTML}{EC407A}
+\definecolor{materialPink500}{HTML}{E91E63}
+\definecolor{materialPink600}{HTML}{D81B60}
+\definecolor{materialPink700}{HTML}{C2185B}
+\definecolor{materialPink800}{HTML}{AD1457}
+\definecolor{materialPink900}{HTML}{880E4F}
+\definecolor{materialPinkA100}{HTML}{FF80AB}
+\definecolor{materialPinkA200}{HTML}{FF4081}
+\definecolor{materialPinkA400}{HTML}{F50057}
+\definecolor{materialPinkA700}{HTML}{C51162}
+\definecolor{materialPurple50}{HTML}{F3E5F5}
+\definecolor{materialPurple100}{HTML}{E1BEE7}
+\definecolor{materialPurple200}{HTML}{CE93D8}
+\definecolor{materialPurple300}{HTML}{BA68C8}
+\definecolor{materialPurple400}{HTML}{AB47BC}
+\definecolor{materialPurple500}{HTML}{9C27B0}
+\definecolor{materialPurple600}{HTML}{8E24AA}
+\definecolor{materialPurple700}{HTML}{7B1FA2}
+\definecolor{materialPurple800}{HTML}{6A1B9A}
+\definecolor{materialPurple900}{HTML}{4A148C}
+\definecolor{materialPurpleA100}{HTML}{EA80FC}
+\definecolor{materialPurpleA200}{HTML}{E040FB}
+\definecolor{materialPurpleA400}{HTML}{D500F9}
+\definecolor{materialPurpleA700}{HTML}{AA00FF}
+\definecolor{materialDeepPurple50}{HTML}{EDE7F6}
+\definecolor{materialDeepPurple100}{HTML}{D1C4E9}
+\definecolor{materialDeepPurple200}{HTML}{B39DDB}
+\definecolor{materialDeepPurple300}{HTML}{9575CD}
+\definecolor{materialDeepPurple400}{HTML}{7E57C2}
+\definecolor{materialDeepPurple500}{HTML}{673AB7}
+\definecolor{materialDeepPurple600}{HTML}{5E35B1}
+\definecolor{materialDeepPurple700}{HTML}{512DA8}
+\definecolor{materialDeepPurple800}{HTML}{4527A0}
+\definecolor{materialDeepPurple900}{HTML}{311B92}
+\definecolor{materialDeepPurpleA100}{HTML}{B388FF}
+\definecolor{materialDeepPurpleA200}{HTML}{7C4DFF}
+\definecolor{materialDeepPurpleA400}{HTML}{651FFF}
+\definecolor{materialDeepPurpleA700}{HTML}{6200EA}
+\definecolor{materialIndigo50}{HTML}{E8EAF6}
+\definecolor{materialIndigo100}{HTML}{C5CAE9}
+\definecolor{materialIndigo200}{HTML}{9FA8DA}
+\definecolor{materialIndigo300}{HTML}{7986CB}
+\definecolor{materialIndigo400}{HTML}{5C6BC0}
+\definecolor{materialIndigo500}{HTML}{3F51B5}
+\definecolor{materialIndigo600}{HTML}{3949AB}
+\definecolor{materialIndigo700}{HTML}{303F9F}
+\definecolor{materialIndigo800}{HTML}{283593}
+\definecolor{materialIndigo900}{HTML}{1A237E}
+\definecolor{materialIndigoA100}{HTML}{8C9EFF}
+\definecolor{materialIndigoA200}{HTML}{536DFE}
+\definecolor{materialIndigoA400}{HTML}{3D5AFE}
+\definecolor{materialIndigoA700}{HTML}{304FFE}
+\definecolor{materialBlue50}{HTML}{E3F2FD}
+\definecolor{materialBlue100}{HTML}{BBDEFB}
+\definecolor{materialBlue200}{HTML}{90CAF9}
+\definecolor{materialBlue300}{HTML}{64B5F6}
+\definecolor{materialBlue400}{HTML}{42A5F5}
+\definecolor{materialBlue500}{HTML}{2196F3}
+\definecolor{materialBlue600}{HTML}{1E88E5}
+\definecolor{materialBlue700}{HTML}{1976D2}
+\definecolor{materialBlue800}{HTML}{1565C0}
+\definecolor{materialBlue900}{HTML}{0D47A1}
+\definecolor{materialBlueA100}{HTML}{82B1FF}
+\definecolor{materialBlueA200}{HTML}{448AFF}
+\definecolor{materialBlueA400}{HTML}{2979FF}
+\definecolor{materialBlueA700}{HTML}{2962FF}
+\definecolor{materialLightBlue50}{HTML}{E1F5FE}
+\definecolor{materialLightBlue100}{HTML}{B3E5FC}
+\definecolor{materialLightBlue200}{HTML}{81D4FA}
+\definecolor{materialLightBlue300}{HTML}{4FC3F7}
+\definecolor{materialLightBlue400}{HTML}{29B6F6}
+\definecolor{materialLightBlue500}{HTML}{03A9F4}
+\definecolor{materialLightBlue600}{HTML}{039BE5}
+\definecolor{materialLightBlue700}{HTML}{0288D1}
+\definecolor{materialLightBlue800}{HTML}{0277BD}
+\definecolor{materialLightBlue900}{HTML}{01579B}
+\definecolor{materialLightBlueA100}{HTML}{80D8FF}
+\definecolor{materialLightBlueA200}{HTML}{40C4FF}
+\definecolor{materialLightBlueA400}{HTML}{00B0FF}
+\definecolor{materialLightBlueA700}{HTML}{0091EA}
+\definecolor{materialCyan50}{HTML}{E0F7FA}
+\definecolor{materialCyan100}{HTML}{B2EBF2}
+\definecolor{materialCyan200}{HTML}{80DEEA}
+\definecolor{materialCyan300}{HTML}{4DD0E1}
+\definecolor{materialCyan400}{HTML}{26C6DA}
+\definecolor{materialCyan500}{HTML}{00BCD4}
+\definecolor{materialCyan600}{HTML}{00ACC1}
+\definecolor{materialCyan700}{HTML}{0097A7}
+\definecolor{materialCyan800}{HTML}{00838F}
+\definecolor{materialCyan900}{HTML}{006064}
+\definecolor{materialCyanA100}{HTML}{84FFFF}
+\definecolor{materialCyanA200}{HTML}{18FFFF}
+\definecolor{materialCyanA400}{HTML}{00E5FF}
+\definecolor{materialCyanA700}{HTML}{00B8D4}
+\definecolor{materialTeal50}{HTML}{E0F2F1}
+\definecolor{materialTeal100}{HTML}{B2DFDB}
+\definecolor{materialTeal200}{HTML}{80CBC4}
+\definecolor{materialTeal300}{HTML}{4DB6AC}
+\definecolor{materialTeal400}{HTML}{26A69A}
+\definecolor{materialTeal500}{HTML}{009688}
+\definecolor{materialTeal600}{HTML}{00897B}
+\definecolor{materialTeal700}{HTML}{00796B}
+\definecolor{materialTeal800}{HTML}{00695C}
+\definecolor{materialTeal900}{HTML}{004D40}
+\definecolor{materialTealA100}{HTML}{A7FFEB}
+\definecolor{materialTealA200}{HTML}{64FFDA}
+\definecolor{materialTealA400}{HTML}{1DE9B6}
+\definecolor{materialTealA700}{HTML}{00BFA5}
+\definecolor{materialGreen50}{HTML}{E8F5E9}
+\definecolor{materialGreen100}{HTML}{C8E6C9}
+\definecolor{materialGreen200}{HTML}{A5D6A7}
+\definecolor{materialGreen300}{HTML}{81C784}
+\definecolor{materialGreen400}{HTML}{66BB6A}
+\definecolor{materialGreen500}{HTML}{4CAF50}
+\definecolor{materialGreen600}{HTML}{43A047}
+\definecolor{materialGreen700}{HTML}{388E3C}
+\definecolor{materialGreen800}{HTML}{2E7D32}
+\definecolor{materialGreen900}{HTML}{1B5E20}
+\definecolor{materialGreenA100}{HTML}{B9F6CA}
+\definecolor{materialGreenA200}{HTML}{69F0AE}
+\definecolor{materialGreenA400}{HTML}{00E676}
+\definecolor{materialGreenA700}{HTML}{00C853}
+\definecolor{materialLightGreen50}{HTML}{F1F8E9}
+\definecolor{materialLightGreen100}{HTML}{DCEDC8}
+\definecolor{materialLightGreen200}{HTML}{C5E1A5}
+\definecolor{materialLightGreen300}{HTML}{AED581}
+\definecolor{materialLightGreen400}{HTML}{9CCC65}
+\definecolor{materialLightGreen500}{HTML}{8BC34A}
+\definecolor{materialLightGreen600}{HTML}{7CB342}
+\definecolor{materialLightGreen700}{HTML}{689F38}
+\definecolor{materialLightGreen800}{HTML}{558B2F}
+\definecolor{materialLightGreen900}{HTML}{33691E}
+\definecolor{materialLightGreenA100}{HTML}{CCFF90}
+\definecolor{materialLightGreenA200}{HTML}{B2FF59}
+\definecolor{materialLightGreenA400}{HTML}{76FF03}
+\definecolor{materialLightGreenA700}{HTML}{64DD17}
+\definecolor{materialLime50}{HTML}{F9FBE7}
+\definecolor{materialLime100}{HTML}{F0F4C3}
+\definecolor{materialLime200}{HTML}{E6EE9C}
+\definecolor{materialLime300}{HTML}{DCE775}
+\definecolor{materialLime400}{HTML}{D4E157}
+\definecolor{materialLime500}{HTML}{CDDC39}
+\definecolor{materialLime600}{HTML}{C0CA33}
+\definecolor{materialLime700}{HTML}{AFB42B}
+\definecolor{materialLime800}{HTML}{9E9D24}
+\definecolor{materialLime900}{HTML}{827717}
+\definecolor{materialLimeA100}{HTML}{F4FF81}
+\definecolor{materialLimeA200}{HTML}{EEFF41}
+\definecolor{materialLimeA400}{HTML}{C6FF00}
+\definecolor{materialLimeA700}{HTML}{AEEA00}
+\definecolor{materialYellow50}{HTML}{FFFDE7}
+\definecolor{materialYellow100}{HTML}{FFF9C4}
+\definecolor{materialYellow200}{HTML}{FFF59D}
+\definecolor{materialYellow300}{HTML}{FFF176}
+\definecolor{materialYellow400}{HTML}{FFEE58}
+\definecolor{materialYellow500}{HTML}{FFEB3B}
+\definecolor{materialYellow600}{HTML}{FDD835}
+\definecolor{materialYellow700}{HTML}{FBC02D}
+\definecolor{materialYellow800}{HTML}{F9A825}
+\definecolor{materialYellow900}{HTML}{F57F17}
+\definecolor{materialYellowA100}{HTML}{FFFF8D}
+\definecolor{materialYellowA200}{HTML}{FFFF00}
+\definecolor{materialYellowA400}{HTML}{FFEA00}
+\definecolor{materialYellowA700}{HTML}{FFD600}
+\definecolor{materialAmber50}{HTML}{FFF8E1}
+\definecolor{materialAmber100}{HTML}{FFECB3}
+\definecolor{materialAmber200}{HTML}{FFE082}
+\definecolor{materialAmber300}{HTML}{FFD54F}
+\definecolor{materialAmber400}{HTML}{FFCA28}
+\definecolor{materialAmber500}{HTML}{FFC107}
+\definecolor{materialAmber600}{HTML}{FFB300}
+\definecolor{materialAmber700}{HTML}{FFA000}
+\definecolor{materialAmber800}{HTML}{FF8F00}
+\definecolor{materialAmber900}{HTML}{FF6F00}
+\definecolor{materialAmberA100}{HTML}{FFE57F}
+\definecolor{materialAmberA200}{HTML}{FFD740}
+\definecolor{materialAmberA400}{HTML}{FFC400}
+\definecolor{materialAmberA700}{HTML}{FFAB00}
+\definecolor{materialOrange50}{HTML}{FFF3E0}
+\definecolor{materialOrange100}{HTML}{FFE0B2}
+\definecolor{materialOrange200}{HTML}{FFCC80}
+\definecolor{materialOrange300}{HTML}{FFB74D}
+\definecolor{materialOrange400}{HTML}{FFA726}
+\definecolor{materialOrange500}{HTML}{FF9800}
+\definecolor{materialOrange600}{HTML}{FB8C00}
+\definecolor{materialOrange700}{HTML}{F57C00}
+\definecolor{materialOrange800}{HTML}{EF6C00}
+\definecolor{materialOrange900}{HTML}{E65100}
+\definecolor{materialOrangeA100}{HTML}{FFD180}
+\definecolor{materialOrangeA200}{HTML}{FFAB40}
+\definecolor{materialOrangeA400}{HTML}{FF9100}
+\definecolor{materialOrangeA700}{HTML}{FF6D00}
+\definecolor{materialDeepOrange50}{HTML}{FBE9E7}
+\definecolor{materialDeepOrange100}{HTML}{FFCCBC}
+\definecolor{materialDeepOrange200}{HTML}{FFAB91}
+\definecolor{materialDeepOrange300}{HTML}{FF8A65}
+\definecolor{materialDeepOrange400}{HTML}{FF7043}
+\definecolor{materialDeepOrange500}{HTML}{FF5722}
+\definecolor{materialDeepOrange600}{HTML}{F4511E}
+\definecolor{materialDeepOrange700}{HTML}{E64A19}
+\definecolor{materialDeepOrange800}{HTML}{D84315}
+\definecolor{materialDeepOrange900}{HTML}{BF360C}
+\definecolor{materialDeepOrangeA100}{HTML}{FF9E80}
+\definecolor{materialDeepOrangeA200}{HTML}{FF6E40}
+\definecolor{materialDeepOrangeA400}{HTML}{FF3D00}
+\definecolor{materialDeepOrangeA700}{HTML}{DD2C00}
+\definecolor{materialBrown50}{HTML}{EFEBE9}
+\definecolor{materialBrown100}{HTML}{D7CCC8}
+\definecolor{materialBrown200}{HTML}{BCAAA4}
+\definecolor{materialBrown300}{HTML}{A1887F}
+\definecolor{materialBrown400}{HTML}{8D6E63}
+\definecolor{materialBrown500}{HTML}{795548}
+\definecolor{materialBrown600}{HTML}{6D4C41}
+\definecolor{materialBrown700}{HTML}{5D4037}
+\definecolor{materialBrown800}{HTML}{4E342E}
+\definecolor{materialBrown900}{HTML}{3E2723}
+\definecolor{materialGray50}{HTML}{FAFAFA}
+\definecolor{materialGray100}{HTML}{F5F5F5}
+\definecolor{materialGray200}{HTML}{EEEEEE}
+\definecolor{materialGray300}{HTML}{E0E0E0}
+\definecolor{materialGray400}{HTML}{BDBDBD}
+\definecolor{materialGray500}{HTML}{9E9E9E}
+\definecolor{materialGray600}{HTML}{757575}
+\definecolor{materialGray700}{HTML}{616161}
+\definecolor{materialGray800}{HTML}{424242}
+\definecolor{materialGray900}{HTML}{212121}
+\definecolor{materialBlueGray50}{HTML}{ECEFF1}
+\definecolor{materialBlueGray100}{HTML}{CFD8DC}
+\definecolor{materialBlueGray200}{HTML}{B0BEC5}
+\definecolor{materialBlueGray300}{HTML}{90A4AE}
+\definecolor{materialBlueGray400}{HTML}{78909C}
+\definecolor{materialBlueGray500}{HTML}{607D8B}
+\definecolor{materialBlueGray600}{HTML}{546E7A}
+\definecolor{materialBlueGray700}{HTML}{455A64}
+\definecolor{materialBlueGray800}{HTML}{37474F}
+\definecolor{materialBlueGray900}{HTML}{263238}
+
+\newcommand{\metropolis@colors@dark}{
+  \setbeamercolor{normal text}{%
+    fg=black!2,
+    bg=eBG
+  }
+  \usebeamercolor[fg]{normal text}
+}
+\newcommand{\metropolis@colors@light}{
+  \setbeamercolor{normal text}{%
+    fg=mDarkTeal,
+    bg=black!2
+  }
+}
+\setbeamercolor{alerted text}{%
+  fg=materialDeepPurple400
+}
+\setbeamercolor{example text}{%
+  fg=mLightGreen
+}
+\setbeamercolor{titlelike}{use=normal text, parent=normal text}
+\setbeamercolor{author}{use=normal text, parent=normal text}
+\setbeamercolor{date}{use=normal text, parent=normal text}
+\setbeamercolor{institute}{use=normal text, parent=normal text}
+\setbeamercolor{structure}{use=normal text, fg=normal text.fg}
+\setbeamercolor{palette primary}{%
+  use=normal text,
+  fg=normal text.bg,
+  bg=normal text.fg
+}
+\setbeamercolor{frametitle}{%
+  use=palette primary,
+  parent=palette primary
+}
+\setbeamercolor{progress bar}{%
+  use=alerted text,
+  fg=alerted text.fg,
+  bg=alerted text.fg!50!black!30
+}
+\setbeamercolor{title separator}{
+  use=progress bar,
+  parent=progress bar
+}
+\setbeamercolor{progress bar in head/foot}{%
+  use=progress bar,
+  parent=progress bar
+}
+\setbeamercolor{progress bar in section page}{
+  use=progress bar,
+  parent=progress bar
+}
+\newcommand{\metropolis@block@transparent}{
+  \setbeamercolor{block title}{%
+    use=normal text,
+    fg=normal text.fg,
+    bg=
+  }
+  \setbeamercolor{block body}{
+    bg=
+  }
+}
+\newcommand{\metropolis@block@fill}{
+  \setbeamercolor{block title}{%
+    use=normal text,
+    fg=normal text.fg,
+    bg=normal text.bg!80!fg
+  }
+  \setbeamercolor{block body}{
+    use={block title, normal text},
+    bg=block title.bg!50!normal text.bg
+  }
+}
+\setbeamercolor{block title alerted}{%
+    use={block title, alerted text},
+    bg=block title.bg,
+    fg=alerted text.fg
+}
+\setbeamercolor{block title example}{%
+    use={block title, example text},
+    bg=block title.bg,
+    fg=example text.fg
+}
+\setbeamercolor{block body alerted}{use=block body, parent=block body}
+\setbeamercolor{block body example}{use=block body, parent=block body}
+\setbeamercolor{footnote}{fg=normal text.fg!90}
+\setbeamercolor{footnote mark}{fg=.}
+\setbeamercolor{bibliography entry author}{fg=, bg=}
+\setbeamercolor{bibliography entry title}{fg=, bg=}
+\setbeamercolor{bibliography entry location}{fg=, bg=}
+\setbeamercolor{bibliography entry note}{fg=, bg=}
+\metropolis@color@setdefaults
+\ProcessPgfPackageOptions{/metropolis/color}
+\mode<all>
+\endinput
+%%
+%% End of file `beamercolorthememetropolis.sty'.

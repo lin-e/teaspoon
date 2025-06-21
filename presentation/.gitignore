@@ -1,0 +1,4 @@
+_minted-main
+main.*
+!main.tex
+!main.pdf
